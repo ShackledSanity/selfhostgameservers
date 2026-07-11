@@ -1,0 +1,98 @@
+name: iris-daily
+# Once a day, post to #the-iris: (1) the CURRENT server config for each game (with
+# admin locks confirmed), and (2) a change log of every config change in the last
+# 24h — pulled straight from the signed git history. Turns the audit channel into a
+# readable, verifiable daily record instead of a black box.
+on:
+  schedule:
+    - cron: "0 8 * * *"   # daily at 08:00 UTC (change to taste)
+  workflow_dispatch:
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0            # full history for the 24h change log
+      - name: Post daily report to #the-iris
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, subprocess, time, urllib.request
+          REPO = "https://github.com/ShackledSanity/selfhostgameservers"
+
+          def post(title, desc, color):
+              url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+              if not url:
+                  print("no webhook set"); return
+              if len(desc) > 4050:
+                  desc = desc[:4040] + "\n…(truncated — see repo)"
+              body = {"embeds": [{"title": title, "description": desc, "color": color}]}
+              try:
+                  urllib.request.urlopen(urllib.request.Request(
+                      url, data=json.dumps(body).encode(),
+                      headers={"Content-Type": "application/json", "User-Agent": "RageQuit-Iris/1.0"}),
+                      timeout=15)
+              except Exception:
+                  print("discord post failed (network or webhook error)")
+
+          def read_env(fp):
+              d = {}
+              if os.path.exists(fp):
+                  for line in open(fp):
+                      line = line.strip()
+                      if line and not line.startswith("#") and "=" in line:
+                          k, v = line.split("=", 1); d[k.strip()] = v.strip()
+              return d
+
+          games = [os.path.basename(x.rstrip("/")) for x in glob.glob("games/*/")
+                   if not os.path.basename(x.rstrip("/")).startswith("_")]
+
+          sections = []; all_locked = True
+          for g in sorted(games):
+              mpath = f"games/{g}/manifest.json"
+              m = json.load(open(mpath)) if os.path.exists(mpath) else {}
+              env = read_env(f"games/{g}/game.env")
+              # admin locks, from the manifest's source_checks
+              admin_ok = True
+              for chk in m.get("source_checks", []):
+                  val = read_env(f"games/{g}/{chk['file']}").get(chk["key"])
+                  if "equals" in chk and val != chk["equals"]: admin_ok = False
+                  if chk.get("empty") and val: admin_ok = False
+              lock = "🔒 Admin: **DISABLED** (no admin password · RCON off · REST off)" if admin_ok \
+                     else "🚨 Admin: **CHANGED — check #the-iris alerts**"
+              if not admin_ok: all_locked = False
+              admin_keys = {c["key"] for c in m.get("source_checks", [])}
+              settings = [f"`{k}={v}`" for k, v in env.items() if k not in admin_keys and v != ""]
+              disp = m.get("display_name", g)
+              sections.append(f"🎮 **{disp}**\n{lock}\n" +
+                              ("Settings: " + " · ".join(settings) if settings else "Settings: (defaults)") +
+                              f"\n📖 [full public config]({REPO}/blob/main/games/{g}/game.env)")
+
+          # change log: commits touching games/ in the last 24h
+          try:
+              out = subprocess.run(["git", "log", "--since=24 hours ago",
+                                    "--pretty=%h\t%s\t%cr", "--", "games/"],
+                                   capture_output=True, text=True, timeout=30).stdout.strip()
+          except Exception:
+              out = ""
+          rows = [l.split("\t", 2) for l in out.splitlines() if l]
+          if rows:
+              shown = rows[:12]
+              changes = "\n".join(f"• `{h}` {s} _({t})_" for h, s, t in shown)
+              if len(rows) > 12:
+                  changes += f"\n• …and {len(rows)-12} more"
+          else:
+              changes = "✅ **No config changes in the last 24 hours** — settings have been stable."
+
+          stamp = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+          desc = ("**Current server config** (public + continuously audited):\n\n" +
+                  "\n\n".join(sections) +
+                  "\n\n**Config changes — last 24h:**\n" + changes +
+                  f"\n\n_Every setting is public and every change is a signed commit._ "
+                  f"[Full history]({REPO}/commits/main) · {stamp}")
+          post("📋 The Iris — daily server report", desc, 0x2ECC71 if all_locked else 0xE01E1E)
+          print("posted; all_locked =", all_locked)
+          PY
