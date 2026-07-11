@@ -1,0 +1,91 @@
+name: iris-status
+# Periodic proof-of-life to #the-iris so the channel isn't just silent — a skeptic
+# reading an empty channel might assume nothing is configured. This posts a green
+# "all healthy" summary on a schedule (and red if anything is ever wrong), so anyone
+# can SEE the audit is live and continuously checking. Immediate problem-alerts still
+# come from heartbeat-check every 15 min.
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (change to taste, e.g. "0 8 * * *" for once daily at 08:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Load latest heartbeats from the heartbeat branch
+        run: |
+          if git fetch origin heartbeat 2>/dev/null; then
+            git checkout origin/heartbeat -- heartbeat 2>/dev/null || true
+          fi
+      - name: Post status to #the-iris
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, sys, time, urllib.request
+
+          def post(title, desc, color):
+              url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+              if not url:
+                  print("no webhook set"); return
+              body = {"embeds": [{"title": title, "description": desc, "color": color}]}
+              try:
+                  urllib.request.urlopen(urllib.request.Request(
+                      url, data=json.dumps(body).encode(),
+                      headers={"Content-Type": "application/json", "User-Agent": "RageQuit-Iris/1.0"}),
+                      timeout=15)
+              except Exception:
+                  print("discord post failed (network or webhook error)")
+
+          def approved_for(g):
+              ap = os.path.join("games", g, "config", "approved.sha256")
+              if os.path.exists(ap):
+                  for line in open(ap):
+                      line = line.strip()
+                      if line and not line.startswith("#"):
+                          return line
+              return None
+
+          MAX_AGE = 1800
+          now = int(time.time())
+          games = [os.path.basename(d.rstrip("/")) for d in glob.glob("games/*/")
+                   if not os.path.basename(d.rstrip("/")).startswith("_")]
+
+          lines = []; all_ok = True
+          for g in sorted(games):
+              hb_path = os.path.join("heartbeat", g + ".json")
+              if not os.path.exists(hb_path):
+                  lines.append(f"• **{g}**: ⚠️ no heartbeat yet"); all_ok = False; continue
+              hb = json.load(open(hb_path))
+              if hb.get("status") == "not-started":
+                  lines.append(f"• **{g}**: ⏳ not deployed yet"); continue
+              age = now - int(hb.get("ts", 0))
+              approved = approved_for(g)
+              hash_ok = (not approved or approved == "REPLACE_AFTER_FIRST_DEPLOY"
+                         or hb.get("runtime_config_sha256") == approved)
+              if hb.get("status") == "ok" and age <= MAX_AGE and hash_ok:
+                  lines.append(f"• **{g}**: ✅ healthy · live config matches approved · checked {age//60}m ago")
+              else:
+                  all_ok = False
+                  why = []
+                  if age > MAX_AGE: why.append(f"heartbeat stale ({age//60}m)")
+                  if hb.get("status") != "ok": why.append(f"status={hb.get('status')}")
+                  if not hash_ok: why.append("config DRIFT vs approved")
+                  lines.append(f"• **{g}**: 🔴 {', '.join(why)}")
+
+          stamp = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+          if all_ok:
+              post("✅ The Iris — all servers healthy",
+                   "\n".join(lines) +
+                   f"\n\nAdmin remains disabled on every server and nothing has changed.\n"
+                   f"_Checked {stamp}. This automated report posts on a schedule so you can see the audit is live and watching._",
+                   0x2ECC71)
+          else:
+              post("⚠️ The Iris — attention needed",
+                   "\n".join(lines) + f"\n\n_Checked {stamp}._", 0xE01E1E)
+          print("posted; all_ok =", all_ok)
+          PY
