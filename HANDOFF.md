@@ -1,7 +1,7 @@
 # Handoff — provision the provably-fair Palworld VM on Proxmox
 
 Paste everything below into the Claude session connected to the Proxmox host. The
-repo URL and my SSH key are already filled in.
+repo URL is filled in; paste your own SSH **public** key at step 3.
 
 ---
 
