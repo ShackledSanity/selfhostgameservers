@@ -1,0 +1,16 @@
+#cloud-config
+# OPTIONAL — fully hands-off first boot instead of running bootstrap-vm.sh by hand.
+# Upload to a Proxmox storage that has the "Snippets" content type enabled
+# (Datacenter > Storage > local > Content > Snippets), then in create-vm.sh add:
+#   qm set $VMID --cicustom "user=local:snippets/cloud-init-user-data.yaml"
+# The --ciuser/--sshkeys from create-vm.sh still provide your login.
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - curl
+  - qemu-guest-agent
+runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
+  - [ git, clone, "https://github.com/shackeldsanity/selfhostgameservers.git", /opt/selfhostgameservers ]
+  - [ bash, -c, "REPO_URL=https://github.com/shackeldsanity/selfhostgameservers.git bash /opt/selfhostgameservers/proxmox/bootstrap-vm.sh" ]

@@ -1,0 +1,10 @@
+{
+  "game": "palworld",
+  "ts": 0,
+  "iso": "1970-01-01T00:00:00Z",
+  "status": "not-started",
+  "runtime_config_sha256": null,
+  "approved_config_sha256": null,
+  "image": "unknown",
+  "git_commit": "unknown"
+}

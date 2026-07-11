@@ -1,0 +1,24 @@
+{
+  "name": "palworld",
+  "display_name": "Palworld",
+  "container": "palworld",
+  "compose_dir": "games/palworld",
+  "live_config": "saves/Config/LinuxServer/PalWorldSettings.ini",
+  "ports": ["8211/udp", "27015/udp"],
+  "image_pin_env": "stack.env",
+  "source_checks": [
+    {"file": "game.env", "key": "RCON_ENABLED", "equals": "false"},
+    {"file": "game.env", "key": "REST_API_ENABLED", "equals": "false"},
+    {"file": "game.env", "key": "ADMIN_PASSWORD", "empty": true}
+  ],
+  "runtime_forbidden": [
+    {"pattern": "RCONEnabled\\s*=\\s*True", "message": "RCON is ENABLED in the live config"},
+    {"pattern": "RESTAPIEnabled\\s*=\\s*True", "message": "REST API is ENABLED in the live config"},
+    {"pattern": "AdminPassword\\s*=\\s*\"[^\"]+\"", "message": "AdminPassword is SET in the live config"}
+  ],
+  "log_forbidden": [
+    {"pattern": "\\bRCON\\b", "message": "RCON activity in server logs"},
+    {"pattern": "REST", "message": "REST API activity in server logs"},
+    {"pattern": "AdminPassword", "message": "admin auth attempt in server logs"}
+  ]
+}

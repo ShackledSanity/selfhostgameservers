@@ -1,0 +1,19 @@
+{
+  "name": "CHANGEME",
+  "display_name": "CHANGE ME",
+  "container": "CHANGEME",
+  "compose_dir": "games/CHANGEME",
+  "live_config": "saves/PATH/TO/live-config-file",
+  "ports": ["0000/udp"],
+  "image_pin_env": "stack.env",
+  "source_checks": [
+    {"file": "game.env", "key": "SOME_ADMIN_TOGGLE", "equals": "false"},
+    {"file": "game.env", "key": "SOME_ADMIN_PASSWORD", "empty": true}
+  ],
+  "runtime_forbidden": [
+    {"pattern": "AdminEnabled\\s*=\\s*True", "message": "admin is ENABLED in the live config"}
+  ],
+  "log_forbidden": [
+    {"pattern": "\\bRCON\\b", "message": "RCON activity in server logs"}
+  ]
+}

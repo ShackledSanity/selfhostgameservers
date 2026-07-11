@@ -1,0 +1,17 @@
+services:
+  CHANGEME:
+    image: ${GAME_IMAGE}
+    container_name: CHANGEME
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # All settings + admin locks come from the git-tracked game.env.
+    env_file:
+      - game.env
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${GAME_PORT}:0000/udp"      # publish ONLY the game port(s); never RCON/admin
+    volumes:
+      # The save/world dir is the ONLY writable state. The live config the watcher
+      # hashes must land under here (see manifest.json -> live_config).
+      - "${SAVE_DIR}:/path/inside/container"

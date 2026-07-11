@@ -1,0 +1,7 @@
+# This repo is deployed on Linux — keep LF endings everywhere so shell scripts
+# and cloud-init files don't break with Windows CRLF.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

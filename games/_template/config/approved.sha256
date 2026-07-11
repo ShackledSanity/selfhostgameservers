@@ -1,0 +1,3 @@
+# Approved runtime hash of this game's live config.
+# After the first deploy: python3 watcher/watcher.py --approve <name>  then commit.
+REPLACE_AFTER_FIRST_DEPLOY

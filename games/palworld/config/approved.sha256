@@ -1,0 +1,10 @@
+# Approved runtime hash of the live PalWorldSettings.ini.
+#
+# After your FIRST deploy (once the server has generated its ini), run:
+#     python3 watcher/watcher.py --approve
+# then commit this file. The watcher and the off-host GitHub Action both compare
+# the live config against this value — any drift raises an alert.
+#
+# Re-run --approve and commit again WHENEVER you legitimately change a setting.
+# The first non-comment line below is read as the hash:
+REPLACE_AFTER_FIRST_DEPLOY

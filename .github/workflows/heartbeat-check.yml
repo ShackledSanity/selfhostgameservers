@@ -1,0 +1,88 @@
+name: heartbeat-check
+# Runs on GitHub's infrastructure (off your host). For every game it confirms the
+# watcher is alive (fresh heartbeat) and the live config still matches the approved
+# hash. If a server goes silent or drifts, it alerts Discord.
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # GitHub may delay scheduled runs; the freshness threshold allows for it
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Load latest heartbeats from the heartbeat branch
+        run: |
+          # Heartbeats live on their own branch so `main` can be branch-protected.
+          # Config (games/*/config/approved.sha256) is read from main; heartbeats
+          # are overlaid from the heartbeat branch if it exists yet.
+          if git fetch origin heartbeat 2>/dev/null; then
+            git checkout origin/heartbeat -- heartbeat 2>/dev/null || true
+          else
+            echo "no heartbeat branch yet — using committed placeholders"
+          fi
+      - name: Verify every game's heartbeat freshness + config hash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, sys, time, urllib.request
+
+          def alert(msg):
+              url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+              print("ALERT:", msg)
+              if not url:
+                  return
+              body = {"embeds": [{"title": "⚠️ Game-server off-host audit",
+                                  "description": msg, "color": 0xE01E1E}]}
+              try:
+                  urllib.request.urlopen(urllib.request.Request(
+                      url, data=json.dumps(body).encode(),
+                      headers={"Content-Type": "application/json"}), timeout=15)
+              except Exception:
+                  print("discord post failed (network or webhook error)")
+
+          def approved_for(game):
+              ap = os.path.join("games", game, "config", "approved.sha256")
+              if os.path.exists(ap):
+                  for line in open(ap):
+                      line = line.strip()
+                      if line and not line.startswith("#"):
+                          return line
+              return None
+
+          MAX_AGE = 1800  # 30 minutes
+          problems = []
+
+          games = [os.path.basename(d.rstrip("/")) for d in glob.glob("games/*/")
+                   if not os.path.basename(d.rstrip("/")).startswith("_")]
+          hbs = glob.glob("heartbeat/*.json")
+          reported = {os.path.splitext(os.path.basename(h))[0] for h in hbs}
+
+          for g in games:
+              if g not in reported:
+                  problems.append(f"[{g}] no heartbeat — the watcher has never reported for this game.")
+
+          for h in hbs:
+              g = os.path.splitext(os.path.basename(h))[0]
+              hb = json.load(open(h))
+              if hb.get("status") == "not-started":
+                  continue  # placeholder — game not deployed yet, don't alert
+              age = int(time.time()) - int(hb.get("ts", 0))
+              approved = approved_for(g)
+              if age > MAX_AGE:
+                  problems.append(f"[{g}] heartbeat STALE ({age // 60} min old) — server may be down/tampered.")
+              if hb.get("status") != "ok":
+                  problems.append(f"[{g}] watcher status = {hb.get('status')}.")
+              if approved and approved != "REPLACE_AFTER_FIRST_DEPLOY" \
+                      and hb.get("runtime_config_sha256") != approved:
+                  problems.append(f"[{g}] runtime config hash does NOT match approved.")
+
+          if problems:
+              alert("\n".join("• " + p for p in problems))
+              sys.exit(1)
+          print("All heartbeats OK")
+          PY

@@ -1,0 +1,14 @@
+# Host-only secrets — never commit
+watcher/watcher.env
+.env
+
+# World / save data (large + private to the host)
+saves/
+data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code local settings (machine-specific)
+.claude/

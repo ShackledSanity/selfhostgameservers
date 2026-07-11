@@ -1,0 +1,65 @@
+name: audit-config
+# Runs on GitHub's infrastructure (off your host) on every change under games/.
+# For EVERY game it proves the published config keeps admin disabled (manifest
+# source_checks) and the image pinned by digest.
+on:
+  push:
+    paths: [games/**, .github/workflows/audit-config.yml]
+  pull_request:
+    paths: [games/**]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce admin locks + image pinning for every game
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, re, sys
+
+          def read_env(fp):
+              vals = {}
+              if os.path.exists(fp):
+                  for line in open(fp):
+                      line = line.strip()
+                      if line and not line.startswith("#") and "=" in line:
+                          k, v = line.split("=", 1)
+                          vals[k.strip()] = v.strip()
+              return vals
+
+          fails = []
+          games = [d for d in glob.glob("games/*/")
+                   if not os.path.basename(d.rstrip("/")).startswith("_")]
+          if not games:
+              print("No games found under games/"); sys.exit(0)
+
+          for d in sorted(games):
+              name = os.path.basename(d.rstrip("/"))
+              mpath = os.path.join(d, "manifest.json")
+              if not os.path.exists(mpath):
+                  fails.append(f"{name}: missing manifest.json"); continue
+              m = json.load(open(mpath))
+
+              for chk in m.get("source_checks", []):
+                  vals = read_env(os.path.join(d, chk["file"]))
+                  v = vals.get(chk["key"])
+                  if "equals" in chk and v != chk["equals"]:
+                      fails.append(f"{name}: {chk['key']} must be {chk['equals']} (got {v!r})")
+                  if chk.get("empty") and v:
+                      fails.append(f"{name}: {chk['key']} must be empty (got {v!r})")
+
+              pinfile = os.path.join(d, m.get("image_pin_env", "stack.env"))
+              txt = open(pinfile).read() if os.path.exists(pinfile) else ""
+              if not re.search(r"_IMAGE=.*@sha256:[0-9a-f]{64}", txt):
+                  fails.append(f"{name}: image in {m.get('image_pin_env')} must be pinned by @sha256 digest")
+
+              print(f"checked {name}")
+
+          if fails:
+              for f in fails:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("All games: admin locked + image pinned ✅")
+          PY

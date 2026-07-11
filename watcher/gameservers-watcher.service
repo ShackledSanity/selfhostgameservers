@@ -1,0 +1,17 @@
+[Unit]
+Description=Provably-fair game-server watcher (multi-game)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/selfhostgameservers
+ExecStart=/usr/bin/python3 /opt/selfhostgameservers/watcher/watcher.py
+Restart=always
+RestartSec=10
+# The watcher only needs to read config, run docker, and push git heartbeats.
+# Give it its own user with docker + repo access (not root where avoidable).
+User=gameservers-watcher
+
+[Install]
+WantedBy=multi-user.target

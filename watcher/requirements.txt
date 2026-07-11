@@ -1,0 +1,2 @@
+# No third-party dependencies — watcher.py uses only the Python 3 standard library.
+# (Needs python3, plus the `docker` and `git` CLIs on PATH.)
