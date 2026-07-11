@@ -1,0 +1,52 @@
+name: webhook-test
+# One-shot diagnostic for the DISCORD_WEBHOOK_URL secret. Run it manually
+# (Actions -> webhook-test -> Run workflow) and read the log. It never prints the
+# secret (GitHub masks it anyway) — only its length/shape and Discord's response.
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose DISCORD_WEBHOOK_URL
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.error
+          url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          print("== DISCORD_WEBHOOK_URL diagnostics ==")
+          print("set (non-empty):", bool(url))
+          print("length:", len(url), "(a full webhook URL is ~120 chars)")
+          print("starts with 'https://discord.com/api/webhooks/':",
+                url.startswith("https://discord.com/api/webhooks/"))
+          print("has leading/trailing whitespace or quotes:",
+                url != url.strip() or url.strip().startswith(('"', "'")))
+          u = url.strip().strip('"').strip("'")
+
+          if not u:
+              print("RESULT: secret is EMPTY. Set it to the full webhook URL.")
+              raise SystemExit(0)
+          if not u.startswith("https://"):
+              print("RESULT: value is NOT a URL — you probably pasted only the token/code.")
+              print("        Paste the WHOLE thing: https://discord.com/api/webhooks/<id>/<token>")
+              raise SystemExit(0)
+
+          body = json.dumps({"content": "🔧 Iris webhook diagnostic — if you see this, the webhook works!"}).encode()
+          req = urllib.request.Request(u, data=body, headers={"Content-Type": "application/json"})
+          try:
+              r = urllib.request.urlopen(req, timeout=15)
+              print(f"RESULT: SUCCESS (HTTP {r.status}). Check #the-iris for the diagnostic message.")
+          except urllib.error.HTTPError as e:
+              detail = ""
+              try: detail = e.read().decode()[:300]
+              except Exception: pass
+              print(f"RESULT: HTTP ERROR {e.code} — Discord says: {detail}")
+              if e.code == 401: print("=> 401: the TOKEN part of the URL is wrong.")
+              if e.code == 404: print("=> 404 (Unknown Webhook): this webhook was DELETED. Recreate it in #the-iris and update the secret.")
+              if e.code == 400: print("=> 400: malformed request/body.")
+          except Exception as e:
+              print(f"RESULT: ERROR {type(e).__name__}: {str(e)[:200]}")
+              print("=> the value isn't a valid URL (bad characters, or not the full https URL).")
+          PY
