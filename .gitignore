@@ -1,6 +1,7 @@
 # Host-only secrets — never commit
 watcher/watcher.env
 .env
+games/*/game.local.env
 
 # World / save data (large + private to the host)
 saves/

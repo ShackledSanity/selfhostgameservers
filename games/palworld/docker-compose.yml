@@ -5,8 +5,14 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     # All gameplay + admin settings come from the git-tracked game.env.
+    # game.local.env (gitignored, host-only) may override with PRIVATE values like
+    # SERVER_PASSWORD — it never enters the public repo. Optional, so deploys work
+    # without it.
     env_file:
-      - game.env
+      - path: game.env
+        required: true
+      - path: game.local.env
+        required: false
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
