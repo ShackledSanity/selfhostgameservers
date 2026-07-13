@@ -63,6 +63,16 @@ jobs:
               except Exception:
                   return ""
 
+          def last_config_change(g):
+              try:
+                  return subprocess.run(
+                      ["git", "log", "-1", "--format=%cr", "--",
+                       f"games/{g}/game.env", f"games/{g}/stack.env",
+                       f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json"],
+                      capture_output=True, text=True, timeout=20).stdout.strip() or "unknown"
+              except Exception:
+                  return "unknown"
+
           games = [os.path.basename(x.rstrip("/")) for x in glob.glob("games/*/")
                    if not os.path.basename(x.rstrip("/")).startswith("_")]
 
@@ -96,6 +106,7 @@ jobs:
               settings = [f"`{k}={v}`" for k, v in env.items() if k not in admin_keys and v != ""]
               sections.append(f"🎮 **{disp}** — {header_state}\n{lock}\n" +
                               ("Settings: " + " · ".join(settings) if settings else "Settings: (defaults)") +
+                              f"\n🕓 Config last changed: **{last_config_change(g)}** (any change = a signed commit)"
                               f"\n📖 [full public config]({REPO}/blob/main/games/{g}/game.env)")
 
           # change log: commits touching games/ in the last 24h
