@@ -1,13 +1,15 @@
 name: heartbeat-check
-# Runs on GitHub's infrastructure (off your host). Separates TWO very different things:
-#   • CONFIG CHANGE (live config no longer matches the approved baseline) -> 🚨 red
-#   • LOST CONTACT / server offline (a network or monitoring issue) -> ⏳ amber, and it
-#     explicitly says this is NOT a config change (the last verified config was fine).
-# So a network blip never gets read as "the host tampered with something".
+# Off-host audit that is STATEFUL: it remembers the last state (on the 'iris-state'
+# branch) so it fires ONCE when a problem starts, stays quiet while it persists, and
+# posts a "✅ Recovered / all clear" when it resolves. It also separates a real
+# CONFIG CHANGE (🚨) from a network/monitoring blip (⏳ — explicitly "not a config change").
 on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write   # to persist alert state on the iris-state branch
 
 jobs:
   check:
@@ -16,21 +18,22 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Load latest heartbeats from the heartbeat branch
+      - name: Load heartbeats + previous alert state
         run: |
-          if git fetch origin heartbeat 2>/dev/null; then
-            git checkout origin/heartbeat -- heartbeat 2>/dev/null || true
-          fi
-      - name: Verify every game's heartbeat + config
+          git fetch origin heartbeat 2>/dev/null && git checkout origin/heartbeat -- heartbeat 2>/dev/null || true
+          git fetch origin iris-state 2>/dev/null || true
+          git show origin/iris-state:state.json > /tmp/prevstate.json 2>/dev/null || echo '{}' > /tmp/prevstate.json
+          echo "previous state:"; cat /tmp/prevstate.json
+      - name: Check + notify on state changes
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python3 - <<'PY'
           import glob, json, os, subprocess, sys, time, urllib.request
 
-          def alert(title, desc, color):
+          def post(title, desc, color):
               url = os.environ.get("DISCORD_WEBHOOK_URL", "")
-              print(title, "::", desc)
+              print(f"[post] {title} :: {desc}")
               if not url:
                   return
               body = {"embeds": [{"title": title, "description": desc, "color": color}]}
@@ -41,8 +44,8 @@ jobs:
               except Exception:
                   print("discord post failed (network or webhook error)")
 
-          def approved_for(game):
-              ap = os.path.join("games", game, "config", "approved.sha256")
+          def approved_for(g):
+              ap = os.path.join("games", g, "config", "approved.sha256")
               if os.path.exists(ap):
                   for line in open(ap):
                       line = line.strip()
@@ -50,70 +53,92 @@ jobs:
                           return line
               return None
 
-          def last_config_change(game):
-              # human-readable age of the last commit that touched this game's config
+          def last_change(g):
               try:
-                  return subprocess.run(
-                      ["git", "log", "-1", "--format=%cr", "--",
-                       f"games/{game}/game.env", f"games/{game}/stack.env",
-                       f"games/{game}/docker-compose.yml", f"games/{game}/manifest.json"],
-                      capture_output=True, text=True, timeout=20).stdout.strip() or "unknown"
+                  return subprocess.run(["git", "log", "-1", "--format=%cr", "--",
+                                         f"games/{g}/game.env", f"games/{g}/stack.env",
+                                         f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json"],
+                                        capture_output=True, text=True, timeout=20).stdout.strip() or "unknown"
               except Exception:
                   return "unknown"
 
-          MAX_AGE = 1800  # 30 minutes
-          now = int(time.time())
-          critical = []   # live config actually changed vs approved
-          notices = []    # lost contact / offline — NOT a config change
+          try:
+              prev = json.load(open("/tmp/prevstate.json"))
+          except Exception:
+              prev = {}
 
+          MAX_AGE = 1800
+          now = int(time.time())
           games = [os.path.basename(d.rstrip("/")) for d in glob.glob("games/*/")
                    if not os.path.basename(d.rstrip("/")).startswith("_")]
-          hbs = glob.glob("heartbeat/*.json")
-          reported = {os.path.splitext(os.path.basename(h))[0] for h in hbs}
-          for g in games:
-              if g not in reported:
-                  notices.append(f"• **{g}**: the monitor has never reported yet.")
 
-          for h in hbs:
-              g = os.path.splitext(os.path.basename(h))[0]
-              hb = json.load(open(h))
+          cur = {}   # game -> (problem: bool, kind, message)
+          for g in games:
+              hb_path = f"heartbeat/{g}.json"
+              if not os.path.exists(hb_path):
+                  cur[g] = (True, "no-report", f"**{g}**: the monitor has never reported yet."); continue
+              hb = json.load(open(hb_path))
               if hb.get("status") == "not-started":
-                  continue
-              age = now - int(hb.get("ts", 0))
-              fresh = age <= MAX_AGE
+                  cur[g] = (False, "", ""); continue
+              age = now - int(hb.get("ts", 0)); fresh = age <= MAX_AGE
               approved = approved_for(g)
               mismatch = (approved and approved != "REPLACE_AFTER_FIRST_DEPLOY"
                           and hb.get("runtime_config_sha256") != approved)
-
               if fresh and mismatch:
-                  critical.append(f"• **{g}**: the LIVE config no longer matches the approved baseline "
-                                  f"(approved config last changed {last_config_change(g)}). This is a real change — investigate.")
-              elif fresh and hb.get("status") == "server-down":
-                  notices.append(f"• **{g}**: server appears **OFFLINE** (container not running). Config itself is unchanged.")
-              elif fresh and hb.get("status") != "ok":
-                  notices.append(f"• **{g}**: watcher reports `{hb.get('status')}`. (Config still matches approved.)")
+                  cur[g] = (True, "drift", f"**{g}**: the LIVE config no longer matches the approved baseline "
+                                           f"(approved config last changed {last_change(g)}). This is a real change — investigate.")
+              elif not fresh:
+                  cur[g] = (True, "lost-contact",
+                            f"**{g}**: the audit **lost contact** with the monitor ~{age//60} min ago — almost always a "
+                            f"network/monitoring hiccup. **This is NOT a config change**; last verified config matched "
+                            f"approved (last real config change: {last_change(g)}).")
+              elif hb.get("status") == "server-down":
+                  cur[g] = (True, "offline", f"**{g}**: server appears **OFFLINE** (container not running). Config unchanged.")
+              elif hb.get("status") != "ok":
+                  cur[g] = (True, "status", f"**{g}**: watcher reports `{hb.get('status')}` (config still matches approved).")
+              else:
+                  cur[g] = (False, "", "")
 
-              if not fresh:
-                  notices.append(
-                      f"• **{g}**: the audit **lost contact** with the server monitor ~{age//60} min ago — "
-                      f"almost always a network/monitoring hiccup. **This is NOT a config change**; the last "
-                      f"verified config matched the approved baseline (last real config change: {last_config_change(g)}).")
+          fires = []; resolves = []; newstate = {}
+          for g, (problem, kind, msg) in cur.items():
+              was = bool(prev.get(g, {}).get("alerting", False))
+              newstate[g] = {"alerting": problem, "kind": kind}
+              if problem and not was:
+                  fires.append((kind, msg))
+              elif (not problem) and was:
+                  resolves.append(g)
 
-          if critical:
-              body = "\n".join(critical)
-              if notices:
-                  body += "\n\nAlso:\n" + "\n".join(notices)
-              alert("🚨 The Iris — CONFIG CHANGE detected", body, 0xE01E1E)
-              sys.exit(1)
-          if notices:
-              alert("⏳ The Iris — monitoring notice (not a config change)",
-                    "\n".join(notices) +
-                    "\n\n_No config change was detected. This is about reachability/monitoring only._",
-                    0xE67E22)
-              sys.exit(0)
-          print("All heartbeats OK")
+          stamp = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+          crit = [m for k, m in fires if k == "drift"]
+          warn = [m for k, m in fires if k != "drift"]
+          if crit:
+              body = "\n".join("• " + m for m in crit)
+              if warn: body += "\n\nAlso:\n" + "\n".join("• " + m for m in warn)
+              post("🚨 The Iris — CONFIG CHANGE detected", body, 0xE01E1E)
+          elif warn:
+              post("⏳ The Iris — monitoring notice (not a config change)",
+                   "\n".join("• " + m for m in warn) +
+                   "\n\n_No config change was detected — this is about reachability/monitoring only._", 0xE67E22)
 
-          if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
-              alert("✅ The Iris — manual check",
-                    "All servers healthy; live config matches the approved baseline.", 0x2ECC71)
+          if resolves:
+              post("✅ The Iris — RECOVERED / all clear",
+                   "\n".join(f"• **{g}**: back to healthy — server online and live config matches the approved baseline." for g in resolves) +
+                   f"\n\n_The earlier warning is resolved. Cleared {stamp}._", 0x2ECC71)
+
+          any_problem = any(p for p, _, _ in cur.values())
+          if (not any_problem) and (not resolves) and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+              post("✅ The Iris — manual check", "All servers healthy; live config matches the approved baseline.", 0x2ECC71)
+
+          json.dump(newstate, open("/tmp/newstate.json", "w"))
+          print("fires:", len(fires), "resolves:", len(resolves), "state:", newstate)
           PY
+      - name: Persist alert state (iris-state branch)
+        if: always()
+        run: |
+          [ -f /tmp/newstate.json ] || echo '{}' > /tmp/newstate.json
+          cp /tmp/newstate.json state.json
+          git checkout --orphan _iris_state
+          git reset -q
+          git add -f state.json
+          git -c user.email=iris@users.noreply.github.com -c user.name=iris-state commit -q -m "iris alert state" || exit 0
+          git push -f origin _iris_state:iris-state 2>&1 | tail -2
