@@ -25,7 +25,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python3 - <<'PY'
-          import calendar, glob, json, os, subprocess, time, urllib.request
+          import calendar, glob, json, os, re, subprocess, time, urllib.request
           REPO = "https://github.com/ShackledSanity/selfhostgameservers"
 
           def post(title, desc, color):
@@ -52,6 +52,16 @@ jobs:
                           k, v = line.split("=", 1); d[k.strip()] = v.strip()
               return d
 
+          def read_xml_props(fp, names):
+              vals = {}
+              if os.path.exists(fp):
+                  txt = open(fp, encoding="utf-8", errors="replace").read()
+                  for n in names:
+                      mm = re.search(r'name="%s"\s+value="([^"]*)"' % re.escape(n), txt, re.I)
+                      if mm:
+                          vals[n] = mm.group(1)
+              return vals
+
           def uptime(started):
               if not started:
                   return ""
@@ -68,7 +78,8 @@ jobs:
                   return subprocess.run(
                       ["git", "log", "-1", "--format=%cr", "--",
                        f"games/{g}/game.env", f"games/{g}/stack.env",
-                       f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json"],
+                       f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json",
+                       f"games/{g}/serverconfig.xml", f"games/{g}/serveradmin.xml"],
                       capture_output=True, text=True, timeout=20).stdout.strip() or "unknown"
               except Exception:
                   return "unknown"
@@ -93,21 +104,41 @@ jobs:
                   header_state = "🔴 **OFFLINE**"; all_good = False
               else:
                   header_state = "⚪ status unknown"
-              # admin locks from manifest source_checks
+              # admin locks: verify env source_checks (Palworld) AND committed-file
+              # committed_checks (7dtd's XML) so the report actually proves the locks.
               admin_ok = True
               for chk in m.get("source_checks", []):
                   val = read_env(f"games/{g}/{chk['file']}").get(chk["key"])
                   if "equals" in chk and val != chk["equals"]: admin_ok = False
                   if chk.get("empty") and val: admin_ok = False
+              for chk in m.get("committed_checks", []):
+                  cf = f"games/{g}/{chk['file']}"
+                  ctxt = open(cf, encoding="utf-8", errors="replace").read() if os.path.exists(cf) else ""
+                  if "required" in chk and not re.search(chk["required"], ctxt, re.I | re.M): admin_ok = False
+                  if "forbidden" in chk and re.search(chk["forbidden"], ctxt, re.I | re.M): admin_ok = False
               if not admin_ok: all_good = False
-              lock = "🔒 Admin: **DISABLED** (no admin password · RCON off · REST off)" if admin_ok \
-                     else "🚨 Admin: **CHANGED — see #the-iris alerts**"
-              admin_keys = {c["key"] for c in m.get("source_checks", [])}
-              settings = [f"`{k}={v}`" for k, v in env.items() if k not in admin_keys and v != ""]
-              sections.append(f"🎮 **{disp}** — {header_state}\n{lock}\n" +
-                              ("Settings: " + " · ".join(settings) if settings else "Settings: (defaults)") +
+
+              # Render settings + lock + config link per config model (env vs XML file).
+              if m.get("source_checks"):   # env-configured game (Palworld)
+                  lock = "🔒 Admin: **DISABLED** (no admin password · RCON off · REST off)" if admin_ok \
+                         else "🚨 Admin: **CHANGED — see #the-iris alerts**"
+                  admin_keys = {c["key"] for c in m.get("source_checks", [])}
+                  settings = [f"`{k}={v}`" for k, v in env.items() if k not in admin_keys and v != ""]
+                  settings_line = "Settings: " + " · ".join(settings) if settings else "Settings: (defaults)"
+                  cfg_link = f"📖 [full public config]({REPO}/blob/main/games/{g}/game.env)"
+              else:                        # file/XML-configured game (7dtd)
+                  lock = "🔒 Admin: **DISABLED** (Telnet · Web Dashboard · creative all off · no admins)" if admin_ok \
+                         else "🚨 Admin: **CHANGED — see #the-iris alerts**"
+                  xp = read_xml_props(f"games/{g}/serverconfig.xml",
+                                      ["GameDifficulty", "XPMultiplier", "LootAbundance", "LootRespawnDays",
+                                       "DayNightLength", "BloodMoonFrequency", "PlayerKillingMode", "ServerMaxPlayerCount"])
+                  settings = [f"`{k}={v}`" for k, v in xp.items()]
+                  settings_line = "Settings: " + " · ".join(settings) if settings else "Settings: (see config)"
+                  cfg_link = f"📖 [full public config]({REPO}/blob/main/games/{g}/serverconfig.xml)"
+
+              sections.append(f"🎮 **{disp}** — {header_state}\n{lock}\n" + settings_line +
                               f"\n🕓 Config last changed: **{last_config_change(g)}** (any change = a signed commit)"
-                              f"\n📖 [full public config]({REPO}/blob/main/games/{g}/game.env)")
+                              f"\n{cfg_link}")
 
           # change log: commits touching games/ in the last 24h
           try:
