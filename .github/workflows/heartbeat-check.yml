@@ -57,7 +57,8 @@ jobs:
               try:
                   return subprocess.run(["git", "log", "-1", "--format=%cr", "--",
                                          f"games/{g}/game.env", f"games/{g}/stack.env",
-                                         f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json"],
+                                         f"games/{g}/docker-compose.yml", f"games/{g}/manifest.json",
+                                         f"games/{g}/serverconfig.xml", f"games/{g}/serveradmin.xml"],
                                         capture_output=True, text=True, timeout=20).stdout.strip() or "unknown"
               except Exception:
                   return "unknown"

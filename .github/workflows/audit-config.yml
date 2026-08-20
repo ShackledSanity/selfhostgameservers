@@ -50,6 +50,18 @@ jobs:
                   if chk.get("empty") and v:
                       fails.append(f"{name}: {chk['key']} must be empty (got {v!r})")
 
+              # For games whose config is a file we ship (XML/INI, not key=value env),
+              # committed_checks assert regexes directly on the committed config file:
+              # a 'required' pattern must be present; a 'forbidden' pattern must not be.
+              for chk in m.get("committed_checks", []):
+                  fp = os.path.join(d, chk["file"])
+                  txt = open(fp).read() if os.path.exists(fp) else ""
+                  msg = chk.get("message", chk["file"])
+                  if "required" in chk and not re.search(chk["required"], txt, re.I | re.M):
+                      fails.append(f"{name}: {msg} (required pattern missing from {chk['file']})")
+                  if "forbidden" in chk and re.search(chk["forbidden"], txt, re.I | re.M):
+                      fails.append(f"{name}: {msg} (forbidden pattern present in {chk['file']})")
+
               pinfile = os.path.join(d, m.get("image_pin_env", "stack.env"))
               txt = open(pinfile).read() if os.path.exists(pinfile) else ""
               if not re.search(r"_IMAGE=.*@sha256:[0-9a-f]{64}", txt):

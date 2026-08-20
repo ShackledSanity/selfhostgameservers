@@ -1,0 +1,35 @@
+services:
+  sdtd:
+    image: ${SDTD_IMAGE}
+    container_name: sdtd
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      # LinuxGSM-based image. START_MODE=1 = start (use 3 to update+start).
+      - START_MODE=1
+      - VERSION=stable
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TimeZone=${TZ}
+    ports:
+      # Publish ONLY the game ports. Telnet (8081), Web Dashboard (8080) and the
+      # Allocs map GUI (8082) are deliberately NOT published — even if something
+      # flipped them on, they aren't reachable from outside.
+      - "${GAME_PORT}:26900/tcp"
+      - "${GAME_PORT}:26900/udp"
+      - "26901:26901/udp"
+      - "26902:26902/udp"
+    volumes:
+      # The server reads serverfiles/sdtdserver.xml. That live file is RENDERED on
+      # the host from the PUBLIC, admin-locked serverconfig.xml, with the PRIVATE
+      # join password injected from game.local.env — so the password is never
+      # committed. Run ./render-config.sh before deploy (see README). The watcher
+      # hashes the rendered live file for drift.
+      #
+      # All of data/ is gitignored runtime state. The game install is kept so
+      # config changes don't re-download it. serveradmin.xml lives under the
+      # save-data dir and is watched for drift (kept writable so EAC can ban).
+      - "${DATA_DIR}/serverfiles:/home/sdtdserver/serverfiles"
+      - "${DATA_DIR}/savedata:/home/sdtdserver/.local/share/7DaysToDie"
+      - "${DATA_DIR}/logs:/home/sdtdserver/log"
+      - "${DATA_DIR}/backups:/home/sdtdserver/lgsm/backup"

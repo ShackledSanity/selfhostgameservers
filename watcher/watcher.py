@@ -73,8 +73,32 @@ def discover_games():
     return games
 
 
-def live_config_path(m):
-    return os.path.join(REPO_DIR, m["compose_dir"], m["live_config"])
+def live_config_paths(m):
+    """Absolute path(s) of the game's live config. `live_config` may be a single
+    string (one file) or a list of strings (several files, e.g. a game whose admin
+    surface spans multiple config files)."""
+    lc = m["live_config"]
+    rels = lc if isinstance(lc, list) else [lc]
+    return [os.path.join(REPO_DIR, m["compose_dir"], r) for r in rels]
+
+
+def read_live_config(m):
+    """Read the game's live config as one text blob.
+
+    Single file -> exactly that file's text (so a one-file game's hash, drift
+    check and heartbeat are byte-identical to before this multi-file support).
+    Multiple files -> concatenated in manifest order with a per-file delimiter;
+    None if ANY listed file is missing (server likely down / not generated yet)."""
+    paths = live_config_paths(m)
+    if len(paths) == 1:
+        return read_text(paths[0])
+    parts = []
+    for p in paths:
+        t = read_text(p)
+        if t is None:
+            return None
+        parts.append(f"# <<< {os.path.basename(p)} >>>\n{t}")
+    return "\n".join(parts)
 
 
 def approved_path(m):
@@ -183,9 +207,9 @@ def approve(one=None):
         if one and m["name"] != one:
             continue
         found = True
-        text = read_text(live_config_path(m))
+        text = read_live_config(m)
         if text is None:
-            print(f"[{m['name']}] live config not found at {live_config_path(m)} — start it first.")
+            print(f"[{m['name']}] live config not found at {', '.join(live_config_paths(m))} — start it first.")
             continue
         h = sha256(text)
         ap = approved_path(m)
@@ -207,7 +231,7 @@ def main():
     last_push = 0.0
     while True:
         for m in discover_games():
-            text = read_text(live_config_path(m))
+            text = read_live_config(m)
             live_hash = sha256(text)
             approved = read_approved(m)
             problems = []

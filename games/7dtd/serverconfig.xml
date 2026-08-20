@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     7 Days to Die — PUBLIC config-as-code (this file IS the published config).
+     The server reads this file (mounted read-only as sdtdserver.xml). Changing a
+     setting = a public, signed commit. The audit workflow ENFORCES the admin
+     locks below on every push (manifest.json -> committed_checks); the on-host
+     watcher enforces them live (manifest.json -> runtime_forbidden).
+     ══════════════════════════════════════════════════════════════════════════ -->
+<ServerSettings>
+
+  <!-- ═══════════════ ADMIN LOCKS — do not change ═══════════════
+       7DTD's remote-admin + cheat surface. With Telnet + Web Dashboard OFF and
+       the creative menu OFF, there is no remote console and no in-game cheat
+       menu. The in-game admin/cheat commands (cm, dm, spawn, teleport…) require
+       being listed in serveradmin.xml — which is kept EMPTY (see that file).    -->
+  <property name="TelnetEnabled"                value="false"/>              <!-- LOCK: no remote admin console -->
+  <property name="TelnetPort"                   value="8081"/>               <!-- (never published; moot while disabled) -->
+  <property name="TelnetPassword"               value=""/>                   <!-- LOCK: empty -->
+  <property name="TelnetFailedLoginLimit"       value="10"/>
+  <property name="TelnetFailedLoginsBlocktime"  value="10"/>
+  <property name="TerminalWindowEnabled"        value="false"/>              <!-- LOCK: no local server console -->
+  <property name="WebDashboardEnabled"          value="false"/>              <!-- LOCK: no web control panel -->
+  <property name="WebDashboardPort"             value="8080"/>               <!-- (never published) -->
+  <property name="WebDashboardUrl"              value=""/>
+  <property name="EnableMapRendering"           value="false"/>
+  <property name="BuildCreate"                  value="false"/>              <!-- LOCK: creative/god menu OFF -->
+  <property name="EACEnabled"                   value="true"/>               <!-- LOCK: Easy Anti-Cheat ON -->
+  <property name="AdminFileName"                value="serveradmin.xml"/>
+  <property name="HideCommandExecutionLog"      value="0"/>                  <!-- log every command (transparency) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- ─────────────── Identity ─────────────── -->
+  <property name="ServerName"                   value="RageQuit-7DaysToDie"/>
+  <property name="ServerDescription"            value="No admin. Config is public + audited. See TRUST.md."/>
+  <property name="ServerWebsiteURL"             value="https://github.com/ShackledSanity/selfhostgameservers"/>
+  <property name="ServerPassword"               value=""/>                   <!-- PUBLIC value stays EMPTY. The private join password is injected into the live config by render-config.sh from game.local.env (never committed). A JOIN password grants zero privileges — irrelevant to fairness. -->
+  <property name="ServerLoginConfirmationText"  value=""/>
+  <property name="Region"                       value="Europe"/>
+  <property name="Language"                      value="English"/>
+
+  <!-- ─────────────── Networking ─────────────── -->
+  <property name="ServerPort"                   value="26900"/>
+  <property name="ServerVisibility"             value="2"/>                  <!-- 2 = public, listed in the server browser -->
+  <property name="ServerDisabledNetworkProtocols" value="SteamNetworking"/>
+  <property name="ServerMaxWorldTransferSpeedKiBs" value="512"/>
+  <property name="ServerMaxPlayerCount"         value="8"/>
+  <property name="ServerReservedSlots"          value="0"/>
+  <property name="ServerReservedSlotsPermission" value="100"/>
+  <property name="ServerAdminSlots"             value="0"/>
+  <property name="ServerAdminSlotsPermission"   value="0"/>
+  <property name="MaxUncoveredMapChunksPerPlayer" value="131072"/>
+  <property name="PersistentPlayerProfiles"     value="false"/>
+
+  <!-- ─────────────── World ─────────────── -->
+  <property name="GameWorld"                    value="Navezgane"/>          <!-- fixed handcrafted map: reliable, no worldgen -->
+  <property name="WorldGenSeed"                 value="RageQuit"/>
+  <property name="WorldGenSize"                 value="4096"/>
+  <property name="GameName"                     value="RageQuit"/>
+  <property name="GameMode"                     value="GameModeSurvival"/>
+
+  <!-- ─────────────── Difficulty & gameplay (change via pull request) ─────────────── -->
+  <property name="GameDifficulty"               value="3"/>                  <!-- Warrior (0 Scavenger … 3 Warrior … 5 Insane) -->
+  <property name="BlockDamagePlayer"            value="100"/>
+  <property name="BlockDamageAI"                value="100"/>                <!-- Block Damage AI: 100% -->
+  <property name="BlockDamageAIBM"              value="100"/>
+  <property name="XPMultiplier"                 value="100"/>                <!-- XP Gain: 100% -->
+  <property name="PlayerSafeZoneLevel"          value="5"/>
+  <property name="PlayerSafeZoneHours"          value="5"/>
+
+  <property name="DayNightLength"               value="60"/>                 <!-- Day Length: 60 real minutes -->
+  <property name="DayLightLength"               value="18"/>
+  <property name="DeathPenalty"                 value="1"/>                  <!-- XP debuff on death (item loss set below) -->
+  <property name="DropOnDeath"                  value="3"/>                  <!-- Death Penalty: Lose Backpack (3 = backpack only) -->
+  <property name="DropOnQuit"                   value="0"/>
+  <property name="BedrollDeadZoneSize"          value="15"/>
+  <property name="BedrollExpiryTime"            value="45"/>
+
+  <!-- ─────────────── Enemies ─────────────── -->
+  <property name="MaxSpawnedZombies"            value="60"/>
+  <property name="MaxSpawnedAnimals"            value="50"/>
+  <property name="ServerMaxAllowedViewDistance" value="12"/>
+  <property name="MaxQueuedMeshLayers"          value="1000"/>
+  <property name="EnemySpawnMode"               value="true"/>               <!-- Enemy Spawning: On -->
+  <property name="EnemyDifficulty"              value="0"/>                  <!-- 0 Normal, 1 Feral -->
+  <property name="ZombieFeralSense"             value="2"/>                  <!-- Feral Sense: Night (0 Off,1 Day,2 Night,3 All) -->
+  <property name="ZombieMove"                   value="0"/>                  <!-- Day speed: Walk (0 walk,1 jog,2 run,3 sprint,4 nightmare) -->
+  <property name="ZombieMoveNight"              value="2"/>                  <!-- Night speed: Run -->
+  <property name="ZombieFeralMove"              value="3"/>                  <!-- Feral speed: Sprint -->
+  <property name="ZombieBMMove"                 value="3"/>                  <!-- Blood Moon speed: Sprint -->
+  <property name="BloodMoonFrequency"           value="7"/>                  <!-- Blood Moon: every 7 days -->
+  <property name="BloodMoonRange"               value="0"/>                  <!-- Blood Moon Range: 0 (exactly every 7) -->
+  <property name="BloodMoonWarning"             value="8"/>
+  <property name="BloodMoonEnemyCount"          value="8"/>                  <!-- Normal (raise toward 10 for "slightly increased") -->
+
+  <!-- ─────────────── Loot ─────────────── -->
+  <property name="LootAbundance"                value="125"/>               <!-- Loot Abundance: 125% -->
+  <property name="LootRespawnDays"              value="5"/>                  <!-- Loot Respawn: 5 days -->
+  <property name="AirDropFrequency"             value="72"/>                 <!-- Air Drop: every 3 days (hours) -->
+  <property name="AirDropMarker"                value="true"/>              <!-- Air Drop Marker: On -->
+
+  <!-- ─────────────── Multiplayer ─────────────── -->
+  <property name="PartySharedKillRange"         value="100"/>
+  <property name="PlayerKillingMode"            value="0"/>                  <!-- PvP: Off (0 = no killing) -->
+
+  <!-- ─────────────── Land claim ─────────────── -->
+  <property name="LandClaimCount"               value="1"/>
+  <property name="LandClaimSize"                value="41"/>
+  <property name="LandClaimDeadZone"            value="30"/>
+  <property name="LandClaimExpiryTime"          value="7"/>
+  <property name="LandClaimDecayMode"           value="0"/>
+  <property name="LandClaimOnlineDurabilityModifier" value="4"/>
+  <property name="LandClaimOfflineDurabilityModifier" value="4"/>
+  <property name="LandClaimOfflineDelay"        value="0"/>
+
+  <!-- ─────────────── Misc / performance ─────────────── -->
+  <property name="DynamicMeshEnabled"           value="true"/>
+  <property name="DynamicMeshLandClaimOnly"     value="true"/>
+  <property name="DynamicMeshLandClaimBuffer"   value="3"/>
+  <property name="DynamicMeshMaxItemCache"      value="3"/>
+  <property name="TwitchServerPermission"       value="90"/>
+  <property name="TwitchBloodMoonAllowed"       value="false"/>
+  <property name="MaxChunkAge"                  value="-1"/>
+  <property name="SaveDataLimit"                value="-1"/>
+
+</ServerSettings>
