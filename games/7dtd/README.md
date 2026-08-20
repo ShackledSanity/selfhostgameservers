@@ -71,10 +71,11 @@ See the repo root [`TRUST.md`](../../TRUST.md) for how players verify all this.
    change. (For a per-server password, first create `games/7dtd/game.local.env`
    with `SERVER_PASSWORD=...`; otherwise it reuses Palworld's.)
 2. `./scripts/deploy.sh 7dtd` (opens the game ports, brings up `sdtd`).
-3. Let it install + generate its save data on first boot. Confirm
-   `data/savedata/.../serveradmin.xml` exists; if its path differs on your host,
-   fix `live_config[1]` in [`manifest.json`](manifest.json). Copy the generated
-   `serveradmin.xml` over the committed baseline and commit it.
+3. Let it install + generate its save data on first boot (the ~17 GB SteamCMD
+   download makes the FIRST boot slow). The server writes its own admin-free
+   `serveradmin.xml` at `data/savedata/Saves/serveradmin.xml` — the path
+   `live_config[1]` watches. If it differs on your host, fix `live_config[1]` in
+   [`manifest.json`](manifest.json).
 4. `python3 watcher/watcher.py --approve 7dtd`, then commit
    [`config/approved.sha256`](config/approved.sha256).
 5. Port-forward `26900/tcp` + `26900-26902/udp` to the VM.

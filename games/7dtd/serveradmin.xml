@@ -15,8 +15,9 @@
      as a single-line comment (starting with "<!--") so it is not mistaken for a
      real grant.
 
-     NOTE: at first deploy this baseline is reconciled with the file the server
-     generates, then re-approved. The "no admins" guarantee is unaffected.
+     NOTE: the running server uses 7DTD's own default serveradmin.xml (also
+     admin-free); the on-host watcher hashes that LIVE file for drift. This
+     committed file is the audited PUBLIC declaration that no admins are set.
      ══════════════════════════════════════════════════════════════════════════ -->
 <admintools>
 
