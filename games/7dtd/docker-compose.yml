@@ -20,13 +20,14 @@ services:
       - "26901:26901/udp"
       - "26902:26902/udp"
     volumes:
-      # The published, admin-locked config is mounted read-only as the server's
-      # active config (sdtdserver.xml). The watcher reads this same file on the
-      # host. (If LinuxGSM refuses a read-only config on your host, drop ":ro" and
-      # instead point live_config at data/serverfiles/sdtdserver.xml — see README.)
-      - "./serverconfig.xml:/home/sdtdserver/serverfiles/sdtdserver.xml:ro"
-      # Persistent runtime state (gitignored via data/). The game install is kept
-      # so config changes don't re-download it. serveradmin.xml lives under the
+      # The server reads serverfiles/sdtdserver.xml. That live file is RENDERED on
+      # the host from the PUBLIC, admin-locked serverconfig.xml, with the PRIVATE
+      # join password injected from game.local.env — so the password is never
+      # committed. Run ./render-config.sh before deploy (see README). The watcher
+      # hashes the rendered live file for drift.
+      #
+      # All of data/ is gitignored runtime state. The game install is kept so
+      # config changes don't re-download it. serveradmin.xml lives under the
       # save-data dir and is watched for drift (kept writable so EAC can ban).
       - "${DATA_DIR}/serverfiles:/home/sdtdserver/serverfiles"
       - "${DATA_DIR}/savedata:/home/sdtdserver/.local/share/7DaysToDie"

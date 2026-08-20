@@ -33,7 +33,7 @@
   <property name="ServerName"                   value="RageQuit-7DaysToDie"/>
   <property name="ServerDescription"            value="No admin. Config is public + audited. See TRUST.md."/>
   <property name="ServerWebsiteURL"             value="https://github.com/ShackledSanity/selfhostgameservers"/>
-  <property name="ServerPassword"               value=""/>                   <!-- open server (a JOIN password is not an admin credential) -->
+  <property name="ServerPassword"               value=""/>                   <!-- PUBLIC value stays EMPTY. The private join password is injected into the live config by render-config.sh from game.local.env (never committed). A JOIN password grants zero privileges — irrelevant to fairness. -->
   <property name="ServerLoginConfirmationText"  value=""/>
   <property name="Region"                       value="Europe"/>
   <property name="Language"                      value="English"/>

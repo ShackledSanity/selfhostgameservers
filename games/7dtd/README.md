@@ -22,9 +22,21 @@ Discord alert within a minute.
 
 - **Ports:** `26900/tcp` + `26900-26902/udp` (game). Telnet (8081), Web Dashboard
   (8080) and the Allocs map GUI (8082) are **never published**.
-- **Live config watched:** `serverconfig.xml` (mounted read-only as the server's
-  `sdtdserver.xml`) **and** the live `serveradmin.xml` under the save-data mount.
+- **Live config watched:** the rendered live `sdtdserver.xml` **and** the live
+  `serveradmin.xml`, both under the gitignored save/serverfiles mounts.
 - **Image:** `vinanrra/7dtd-server`, pinned by digest in [`stack.env`](stack.env).
+
+### Private join password
+
+The server is gated by a join password, kept **private** exactly like Palworld's.
+The public [`serverconfig.xml`](serverconfig.xml) keeps `ServerPassword` **empty**;
+[`render-config.sh`](render-config.sh) writes the live `sdtdserver.xml` with the
+password injected from `game.local.env` (gitignored). If `games/7dtd/game.local.env`
+is absent it falls back to **`games/palworld/game.local.env`**, so 7DTD reuses
+Palworld's password with no duplicated secret. The password grants zero
+privileges (it is not an admin credential) and only its *hash* ever appears in the
+public approved baseline. To use a different password, create
+`games/7dtd/game.local.env` with `SERVER_PASSWORD=...` and re-render.
 
 ## Applied gameplay settings
 
@@ -54,14 +66,15 @@ See the repo root [`TRUST.md`](../../TRUST.md) for how players verify all this.
 
 ## Deploy notes
 
-1. `./scripts/deploy.sh 7dtd` (opens the game ports, brings up `sdtd`).
-2. Let it install + generate its save data on first boot. Confirm
+1. **Render the live config** (injects the private join password, never committed):
+   `bash games/7dtd/render-config.sh`. Re-run this after any `serverconfig.xml`
+   change. (For a per-server password, first create `games/7dtd/game.local.env`
+   with `SERVER_PASSWORD=...`; otherwise it reuses Palworld's.)
+2. `./scripts/deploy.sh 7dtd` (opens the game ports, brings up `sdtd`).
+3. Let it install + generate its save data on first boot. Confirm
    `data/savedata/.../serveradmin.xml` exists; if its path differs on your host,
    fix `live_config[1]` in [`manifest.json`](manifest.json). Copy the generated
    `serveradmin.xml` over the committed baseline and commit it.
-3. `python3 watcher/watcher.py --approve 7dtd`, then commit
+4. `python3 watcher/watcher.py --approve 7dtd`, then commit
    [`config/approved.sha256`](config/approved.sha256).
-4. If LinuxGSM rejects the read-only `serverconfig.xml` mount, drop `:ro` in
-   [`docker-compose.yml`](docker-compose.yml) and point `live_config[0]` at
-   `data/serverfiles/sdtdserver.xml`.
 5. Port-forward `26900/tcp` + `26900-26902/udp` to the VM.

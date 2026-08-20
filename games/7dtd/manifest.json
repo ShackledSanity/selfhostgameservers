@@ -4,7 +4,7 @@
   "container": "sdtd",
   "compose_dir": "games/7dtd",
   "live_config": [
-    "serverconfig.xml",
+    "data/serverfiles/sdtdserver.xml",
     "data/savedata/Saves/serveradmin.xml"
   ],
   "ports": ["26900/tcp", "26900/udp", "26901/udp", "26902/udp"],
