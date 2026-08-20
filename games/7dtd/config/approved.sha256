@@ -1,0 +1,3 @@
+# Approved runtime hash of this game's live config (serverconfig.xml + serveradmin.xml).
+# After the first deploy: python3 watcher/watcher.py --approve 7dtd  then commit.
+REPLACE_AFTER_FIRST_DEPLOY

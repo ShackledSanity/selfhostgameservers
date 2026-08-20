@@ -1,0 +1,35 @@
+{
+  "name": "7dtd",
+  "display_name": "7 Days to Die",
+  "container": "sdtd",
+  "compose_dir": "games/7dtd",
+  "live_config": [
+    "serverconfig.xml",
+    "data/savedata/Saves/serveradmin.xml"
+  ],
+  "ports": ["26900/tcp", "26900/udp", "26901/udp", "26902/udp"],
+  "image_pin_env": "stack.env",
+  "committed_checks": [
+    {"file": "serverconfig.xml", "required": "name=\"TelnetEnabled\"\\s+value=\"false\"", "message": "Telnet must be disabled"},
+    {"file": "serverconfig.xml", "forbidden": "name=\"TelnetEnabled\"\\s+value=\"true\"", "message": "Telnet is ENABLED"},
+    {"file": "serverconfig.xml", "required": "name=\"WebDashboardEnabled\"\\s+value=\"false\"", "message": "Web Dashboard must be disabled"},
+    {"file": "serverconfig.xml", "forbidden": "name=\"WebDashboardEnabled\"\\s+value=\"true\"", "message": "Web Dashboard is ENABLED"},
+    {"file": "serverconfig.xml", "forbidden": "name=\"ControlPanelEnabled\"\\s+value=\"true\"", "message": "Control Panel is ENABLED"},
+    {"file": "serverconfig.xml", "required": "name=\"BuildCreate\"\\s+value=\"false\"", "message": "Creative/god menu (BuildCreate) must be disabled"},
+    {"file": "serverconfig.xml", "forbidden": "name=\"BuildCreate\"\\s+value=\"true\"", "message": "Creative/god menu (BuildCreate) is ENABLED"},
+    {"file": "serverconfig.xml", "required": "name=\"EACEnabled\"\\s+value=\"true\"", "message": "Easy Anti-Cheat must stay enabled"},
+    {"file": "serveradmin.xml", "forbidden": "(?im)^\\s*<(?:admin|user)\\b[^>]*permission_level", "message": "an admin/permission grant exists in serveradmin.xml"}
+  ],
+  "runtime_forbidden": [
+    {"pattern": "name=\"TelnetEnabled\"\\s+value=\"true\"", "message": "Telnet is ENABLED in the live config"},
+    {"pattern": "name=\"WebDashboardEnabled\"\\s+value=\"true\"", "message": "Web Dashboard is ENABLED in the live config"},
+    {"pattern": "name=\"ControlPanelEnabled\"\\s+value=\"true\"", "message": "Control Panel is ENABLED in the live config"},
+    {"pattern": "name=\"BuildCreate\"\\s+value=\"true\"", "message": "Creative/god menu is ENABLED in the live config"},
+    {"pattern": "(?im)^\\s*<(?:admin|user)\\b[^>]*permission_level", "message": "an admin/permission grant exists in live serveradmin.xml"}
+  ],
+  "log_forbidden": [
+    {"pattern": "(?i)telnet.*(started|listening)", "message": "Telnet interface activity in server logs"},
+    {"pattern": "(?i)started webserver", "message": "Web Dashboard/Allocs webserver started (should be disabled)"},
+    {"pattern": "Executing command", "message": "a console/admin command was executed"}
+  ]
+}

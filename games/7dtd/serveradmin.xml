@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     7 Days to Die — PUBLIC admin file (config-as-code).
+
+     This is the ENTIRE in-game admin/cheat gate. A player can only run admin or
+     cheat console commands (cm, dm, spawnentity, teleport, giveself, settime…)
+     if they are listed here with a permission level. This file is intentionally
+     EMPTY — NO users, NO admin grants — so nobody, including the host, can issue
+     an admin/cheat command in-game.
+
+     The audit workflow FAILS the build if any uncommented <user>/<admin> entry
+     with a permission_level appears here (manifest.json -> committed_checks), and
+     the on-host watcher hashes the LIVE copy of this file every 60s and alerts on
+     any admin being added (manifest.json -> runtime_forbidden). Keep every example
+     as a single-line comment (starting with "<!--") so it is not mistaken for a
+     real grant.
+
+     NOTE: at first deploy this baseline is reconciled with the file the server
+     generates, then re-approved. The "no admins" guarantee is unaffected.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<admintools>
+
+  <!-- Admin/permission grants. EMPTY on purpose. A user with permission_level="0"
+       would be a full super-admin. Example (commented = NOT in effect): -->
+  <!-- <user platform="Steam" userid="76561198000000000" permission_level="0" name="Example" /> -->
+  <users>
+  </users>
+
+  <!-- Command permission levels. Left at defaults; irrelevant while no user above
+       has a permission level. Example (commented): -->
+  <!-- <permission cmd="dm" permission_level="0" /> -->
+  <permissions>
+  </permissions>
+
+  <!-- Ban list. Managed by the server/EAC at runtime; none at baseline. -->
+  <blacklist>
+  </blacklist>
+
+  <!-- Whitelist. Not used (open server). -->
+  <whitelist>
+  </whitelist>
+
+</admintools>
