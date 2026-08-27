@@ -1,8 +1,8 @@
 [Unit]
-Description=Daily 7DTD restart at 02:30 UTC — picks up new stable game builds
+Description=Daily player-aware 7DTD restart at 03:00 SAST — update backstop + hung-server recovery
 
 [Timer]
-OnCalendar=*-*-* 02:30:00
+OnCalendar=*-*-* 03:00:00 Africa/Johannesburg
 Persistent=true
 
 [Install]

@@ -1,0 +1,8 @@
+[Unit]
+Description=7DTD hourly update check — restarts only if empty AND a new build exists
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/selfhostgameservers/games/7dtd/systemd/sdtd-restart.sh check
