@@ -1,8 +1,8 @@
 [Unit]
-Description=Restart the 7DTD container (START_MODE=3 updates to latest stable on start)
+Description=Player-aware 7DTD restart (skips if anyone online; START_MODE=3 updates on start)
 Requires=docker.service
 After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/docker restart sdtd
+ExecStart=/opt/selfhostgameservers/games/7dtd/systemd/sdtd-restart.sh

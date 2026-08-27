@@ -71,11 +71,23 @@ The server tracks the **latest stable 7DTD build** automatically:
 - `START_MODE=3` in [`docker-compose.yml`](docker-compose.yml) makes every
   container start run a SteamCMD update check (installs the new build if one
   exists, no-op otherwise) before launching the server.
-- [`systemd/sdtd-restart.timer`](systemd/sdtd-restart.timer) restarts the
-  container daily at **02:30 UTC** (04:30 SAST), so a new release is picked up
-  within 24h — at an hour when the server is empty (and 7DTD pauses in-game
-  time while empty, so idle restarts cost nothing). Install on the VM with:
-  `sudo cp games/7dtd/systemd/sdtd-restart.* /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now sdtd-restart.timer`
+- [`systemd/sdtd-restart.timer`](systemd/sdtd-restart.timer) fires daily at
+  **02:30 UTC** (04:30 SAST) and runs
+  [`systemd/sdtd-restart.sh`](systemd/sdtd-restart.sh), which is
+  **player-aware**: it reads the live player count via the public read-only
+  Steam A2S query on the game port and **skips the restart if anyone is
+  online**, trying again the next night. Nobody is ever kicked for an update;
+  restarts only happen while the server is empty (and 7DTD pauses in-game time
+  while empty, so an idle restart costs nothing). If the query gets no answer
+  the server is down or hung, so it restarts anyway — recovery, not
+  disruption. Install on the VM with:
+  `sudo cp games/7dtd/systemd/sdtd-restart.{service,timer} /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now sdtd-restart.timer`
+- An in-game "restarting soon" broadcast is deliberately **not** possible
+  here: sending console messages needs Telnet or the Web Dashboard, the very
+  admin surfaces this server provably keeps disabled. Skipping the restart
+  entirely is the stronger guarantee. If the server happens to be occupied at
+  02:30 night after night, the update just waits — force a cycle at any empty
+  moment with `sudo systemctl start sdtd-restart.service`.
 - Game binaries come from **Steam's official depot** (`VERSION=stable`); the
   container image stays **digest-pinned** in `stack.env` — auto-update never
   changes the image, only the game files, so the fairness guarantees are
