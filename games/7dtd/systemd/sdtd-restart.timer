@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily 7DTD restart at 02:30 UTC — picks up new stable game builds
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

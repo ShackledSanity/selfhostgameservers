@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart the 7DTD container (START_MODE=3 updates to latest stable on start)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker restart sdtd

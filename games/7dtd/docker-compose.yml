@@ -5,8 +5,13 @@ services:
     restart: unless-stopped
     stop_grace_period: 60s
     environment:
-      # LinuxGSM-based image. START_MODE=1 = start (use 3 to update+start).
-      - START_MODE=1
+      # LinuxGSM-based image. START_MODE=3 = check Steam for the latest STABLE
+      # build and update it BEFORE starting — i.e. auto-update on every container
+      # start. The daily restart timer (systemd/sdtd-restart.timer on the VM)
+      # triggers that check, so a new 7DTD release is live within 24h with no
+      # manual step. Game binaries come from Steam's official depot; the
+      # container image itself stays digest-pinned in stack.env.
+      - START_MODE=3
       - VERSION=stable
       - PUID=${PUID}
       - PGID=${PGID}

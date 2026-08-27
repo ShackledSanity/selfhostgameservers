@@ -64,6 +64,29 @@ reviewed, public modlet under this module as a separate, audited change.
 
 See the repo root [`TRUST.md`](../../TRUST.md) for how players verify all this.
 
+## Auto-update
+
+The server tracks the **latest stable 7DTD build** automatically:
+
+- `START_MODE=3` in [`docker-compose.yml`](docker-compose.yml) makes every
+  container start run a SteamCMD update check (installs the new build if one
+  exists, no-op otherwise) before launching the server.
+- [`systemd/sdtd-restart.timer`](systemd/sdtd-restart.timer) restarts the
+  container daily at **02:30 UTC** (04:30 SAST), so a new release is picked up
+  within 24h — at an hour when the server is empty (and 7DTD pauses in-game
+  time while empty, so idle restarts cost nothing). Install on the VM with:
+  `sudo cp games/7dtd/systemd/sdtd-restart.* /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now sdtd-restart.timer`
+- Game binaries come from **Steam's official depot** (`VERSION=stable`); the
+  container image stays **digest-pinned** in `stack.env` — auto-update never
+  changes the image, only the game files, so the fairness guarantees are
+  unaffected.
+
+Caveat: if a game update ever rewrites one of the watched live files
+(`sdtdserver.xml` is ours and not in the Steam depot, so this is unlikely;
+`serveradmin.xml` could change schema on a major version), the Iris will raise
+a drift alert — verify the change is benign, then re-approve the hash
+(`watcher.py --approve 7dtd`) and commit it.
+
 ## Deploy notes
 
 1. **Render the live config** (injects the private join password, never committed):
