@@ -1,0 +1,45 @@
+services:
+  valheim:
+    image: ${VALHEIM_IMAGE}
+    container_name: valheim
+    restart: unless-stopped
+    # Valheim flushes the world to disk on shutdown. Cutting it short is how
+    # people lose a session's progress, so give it room.
+    stop_grace_period: 120s
+    # All gameplay + admin settings come from the git-tracked game.env.
+    # game.local.env (gitignored, host-only) may override with PRIVATE values
+    # like SERVER_PASS — it never enters the public repo. Optional, so deploys
+    # work without it.
+    env_file:
+      - path: game.env
+        required: true
+      - path: game.local.env
+        required: false
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "${GAME_PORT}:2456/udp"
+      - "${QUERY_PORT}:2457/udp"
+      # NOTE: the supervisor HTTP interface (9001) and the status page (80) are
+      # deliberately NOT published, on top of being disabled in game.env. Even
+      # if something flipped them on, they aren't reachable from outside.
+      # Crossplay's 2458/udp is not published either — see stack.env.
+    volumes:
+      # /config holds worlds_local (the world .fwl/.db), adminlist.txt,
+      # permittedlist.txt, bannedlist.txt and backups. The watcher hashes
+      # adminlist.txt + permittedlist.txt from here — see manifest.json.
+      - "${DATA_DIR}/config:/config"
+      # The game install, kept out of the container so a config change doesn't
+      # re-download ~2GB from Steam.
+      - "${DATA_DIR}/server:/opt/valheim"
+    # No cap_add. The image runs steamcmd and drops to PUID/PGID without extra
+    # capabilities; granting one "in case" is exactly the habit this repo exists
+    # to avoid. If the container turns out to need one it will fail loudly on
+    # first boot and it can be added in a commit with a reason attached.
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "valheim_server"]
+      interval: 60s
+      timeout: 10s
+      retries: 3

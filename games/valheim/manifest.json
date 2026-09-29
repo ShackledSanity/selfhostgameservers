@@ -1,0 +1,30 @@
+{
+  "name": "valheim",
+  "display_name": "Valheim",
+  "container": "valheim",
+  "compose_dir": "games/valheim",
+  "live_config": [
+    "data/config/adminlist.txt",
+    "data/config/permittedlist.txt"
+  ],
+  "ports": ["2456/udp", "2457/udp"],
+  "image_pin_env": "stack.env",
+  "source_checks": [
+    {"file": "game.env", "key": "ADMINLIST_IDS", "empty": true},
+    {"file": "game.env", "key": "SERVER_PASS", "empty": true},
+    {"file": "game.env", "key": "SUPERVISOR_HTTP", "equals": "false"},
+    {"file": "game.env", "key": "STATUS_HTTP", "equals": "false"},
+    {"file": "game.env", "key": "VALHEIM_PLUS", "equals": "false"},
+    {"file": "game.env", "key": "BEPINEX", "equals": "false"}
+  ],
+  "runtime_forbidden": [
+    {"pattern": "(?m)^\\s*[0-9]{17}\\s*$", "message": "a SteamID has been added to the live adminlist.txt or permittedlist.txt"}
+  ],
+  "log_forbidden": [
+    {"pattern": "(?i)\\bdevcommands\\b", "message": "devcommands (the cheat console) was used"},
+    {"pattern": "(?i)Adding\\s+user\\s+\\S+\\s+as\\s+admin", "message": "an admin was granted at runtime"},
+    {"pattern": "(?i)\\bBepInEx\\b", "message": "a mod loader started (BepInEx)"},
+    {"pattern": "(?i)ValheimPlus", "message": "a mod loader started (ValheimPlus)"},
+    {"pattern": "(?i)supervisor.*http.*server.*started", "message": "the supervisor HTTP management interface started"}
+  ]
+}

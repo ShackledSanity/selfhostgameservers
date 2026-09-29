@@ -1,0 +1,16 @@
+# Approved runtime hash of Valheim's live admin surface — adminlist.txt and
+# permittedlist.txt hashed together as one blob (see manifest.json live_config).
+#
+# Both should be the image's stock comment-only files with NO SteamIDs in them.
+# That is the whole point: an empty admin list is what makes this server fair.
+#
+# After your FIRST deploy (once the container has written /config), run:
+#     python3 watcher/watcher.py --approve valheim
+# then commit this file. The watcher and the off-host GitHub Action both compare
+# the live files against this value — any drift raises an alert.
+#
+# Re-run --approve and commit again WHENEVER you legitimately change one (which
+# for Valheim should be close to never — adding an admin is exactly the thing
+# this repo exists to make impossible to do quietly).
+# The first non-comment line below is read as the hash:
+REPLACE_AFTER_FIRST_DEPLOY
