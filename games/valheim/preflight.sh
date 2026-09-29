@@ -70,8 +70,19 @@ EOS
 fi
 
 # ── world state ──────────────────────────────────────────────────────────────
-if [ -f "${WORLDS}/${WORLD_NAME}.db" ]; then
+# Valheim stores a world as a DIRECTORY on current versions
+#   worlds_local/<name>/_main.0.fwl2   (+ save data once the world saves)
+# and as flat <name>.fwl / <name>.db on older ones. Check BOTH: testing only
+# the flat .db reports "no world yet" on a server that HAS one, which is the
+# dangerous direction to be wrong in - it invites treating a live world as a
+# fresh deploy.
+if [ -d "${WORLDS}/${WORLD_NAME}" ] && [ -n "$(ls -A "${WORLDS}/${WORLD_NAME}" 2>/dev/null)" ]; then
   echo "    world      : exists already - this deploy will KEEP it"
+  printf '                 %s/  (%s)\n' "${WORLDS}/${WORLD_NAME}" \
+    "$(du -sh "${WORLDS}/${WORLD_NAME}" 2>/dev/null | cut -f1)"
+  ls -1 "${WORLDS}/${WORLD_NAME}" | sed 's/^/                   /'
+elif [ -f "${WORLDS}/${WORLD_NAME}.db" ]; then
+  echo "    world      : exists already, legacy flat layout - this deploy will KEEP it"
   printf '                 %s (%s bytes)\n' "${WORLDS}/${WORLD_NAME}.db" \
     "$(stat -c%s "${WORLDS}/${WORLD_NAME}.db" 2>/dev/null || stat -f%z "${WORLDS}/${WORLD_NAME}.db")"
 else

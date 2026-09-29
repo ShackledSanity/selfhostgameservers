@@ -58,12 +58,14 @@ server — can break startup, and the error only appears in the container log, s
 
 Worth knowing why that was the sensible choice: **Valheim dedicated servers have
 no `-seed` argument.** You give the server a world *name*, and a chosen seed
-would mean generating the world in the Valheim client and copying the `.fwl` and
-`.db` onto the VM by hand — a manual step outside config-as-code, repeated every
-time the world is reset.
+would mean generating the world in the Valheim client and copying its save
+directory onto the VM by hand — a manual step outside config-as-code, repeated
+every time the world is reset.
 
 **That generated world is the only irreplaceable thing on this box, and it is
-not in git.** It lives in `data/config/worlds_local/`, which is gitignored
+not in git.** It lives in `data/config/worlds_local/Yggdrasil/` — current
+Valheim stores each world as a *directory* (`_main.0.fwl2` plus save data), not
+the flat `.fwl`/`.db` pair older guides describe. That path is gitignored
 runtime state like every other game's saves. Deleting it does not "re-roll the
 seed" — it destroys the save and generates a different world in its place.
 The container keeps rolling backups in `/config/backups` (see `BACKUPS_*` in
@@ -156,8 +158,10 @@ players join and additionally needs 2458/udp published in
 Check the world was created and then get it off this disk:
 
 ```bash
-ls -l games/valheim/data/config/worlds_local/    # Yggdrasil.fwl + Yggdrasil.db
+ls -lR games/valheim/data/config/worlds_local/   # Yggdrasil/ -> _main.0.fwl2, save data
 ```
+
+Note it is a **directory** per world, not two files — `cp` needs `-r`.
 
 The container's own backups live in `/config/backups` on the same volume, which
 covers a corrupted save but not a dead disk. This world is the only state here
