@@ -1,4 +1,9 @@
 # Host-only secrets — never commit
+cert/
+*.pem
+*.key
+*.pfx
+*.p12
 watcher/watcher.env
 .env
 games/*/game.local.env
@@ -11,5 +16,6 @@ data/
 __pycache__/
 *.pyc
 
-# Claude Code local settings (machine-specific)
+# Claude Code local settings + project memory (private, travels with the folder)
 .claude/
+CLAUDE.local.md
