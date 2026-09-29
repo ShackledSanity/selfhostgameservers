@@ -1,7 +1,7 @@
 {
   "game": "valheim",
-  "ts": 1790700367,
-  "iso": "2026-09-29T16:46:07Z",
+  "ts": 1790700676,
+  "iso": "2026-09-29T16:51:16Z",
   "status": "ok",
   "server_running": true,
   "server_health": "healthy",
@@ -9,5 +9,5 @@
   "runtime_config_sha256": "f956d89351407ccac5511c328f555882d51c93b3e0c2f0cec1b948f1fa8a3210",
   "approved_config_sha256": "f956d89351407ccac5511c328f555882d51c93b3e0c2f0cec1b948f1fa8a3210",
   "image": "sha256:c885aa902faf885ceb8f69a34663b90519e65aa65fbd9f893451f0640e218a4f",
-  "git_commit": "775a030c7"
+  "git_commit": "44b2f6c7d"
 }
