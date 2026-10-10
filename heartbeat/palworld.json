@@ -1,10 +1,10 @@
 {
   "game": "palworld",
-  "ts": 1791612058,
-  "iso": "2026-10-10T06:00:58Z",
+  "ts": 1791612368,
+  "iso": "2026-10-10T06:06:08Z",
   "status": "ok",
   "server_running": true,
-  "server_health": "starting",
+  "server_health": "healthy",
   "server_started": "2026-10-10T06:00:12.960896129Z",
   "runtime_config_sha256": "4f9d230ef86db90b27221fa6c01e2522fb5d30c554889b3deb800edf98dac6f7",
   "approved_config_sha256": "4f9d230ef86db90b27221fa6c01e2522fb5d30c554889b3deb800edf98dac6f7",
