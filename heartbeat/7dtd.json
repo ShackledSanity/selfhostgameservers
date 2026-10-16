@@ -1,7 +1,7 @@
 {
   "game": "7dtd",
-  "ts": 1792178416,
-  "iso": "2026-10-16T19:20:16Z",
+  "ts": 1792178873,
+  "iso": "2026-10-16T19:27:53Z",
   "status": "ok",
   "server_running": true,
   "server_health": "n/a",
@@ -9,5 +9,5 @@
   "runtime_config_sha256": "4625bb4a4687ef315540627ef6052a2c466dbdfe81c90846bd30699f5328d303",
   "approved_config_sha256": "4625bb4a4687ef315540627ef6052a2c466dbdfe81c90846bd30699f5328d303",
   "image": "sha256:15fb8c1948ef669f66a5a9db81610afb52aabbf1df5954e6bbe12774644f1d8c",
-  "git_commit": "40672c0a8"
+  "git_commit": "06404f6c1"
 }
