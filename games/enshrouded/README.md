@@ -44,12 +44,16 @@ grants ordinary player permissions and nothing more.
 
 Charl's call on 2026-10-16: vanilla server settings. Nothing gameplay-related
 is set, so the server runs its own defaults — `gameSettingsPreset: "Default"`,
-16 slots, voice and text chat off.
+16 slots, voice and text chat off. Keen describes Default as "the recommended
+setting for first-time players".
 
-The settings the server actually runs with are published in full in
+The file the server actually runs with is published in full in
 [`config/approved-config.json`](config/approved-config.json), password blanked.
-That includes everything the server fills in on its own, such as the settings
-new in 1.0 (`flameLevelFogRemoval`, the `Automatic` enemy amount).
+Its long `gameSettings` block is the server writing out its defaults, not
+settings in force: per Keen, the individual settings only apply when the preset
+is `Custom`. (One oddity in Keen's own material: the 1.0 readme's sample file
+lists `randomSpawnerAmount: "Normal"`, while the 1.0 server writes `"Automatic"`.
+Under `Default` neither is used.)
 
 **The one deliberate difference from vanilla is the group's permissions.** With
 no Admin, the single group gets the Admin group's permissions *minus*
@@ -98,8 +102,8 @@ drift alert, like a hand edit would. Check the new setting, then re-approve.
 
 Enshrouded has one fixed map, so there is no seed to choose. The server created
 its world on first boot. Enshrouded 1.0 stores it as
-`data/game/server/savegame/world*.ksd` and keeps its own rolling copies in
-`savegame/backup/`.
+`data/game/server/savegame/world*.ksd`, saves it every 5 minutes (per Keen), and
+keeps its own rolling copies in `savegame/backup/`.
 
 **That world is the only irreplaceable thing in this module, and it is not in
 git.** It is gitignored runtime state like every other game's saves, and it is
@@ -136,6 +140,12 @@ official server image, so this is a community one, like every other game here.
 Its supervisor listens on a socket inside the container only — no management
 port to leave unpublished.
 
+**Keen supports the dedicated server on Windows only** ("Linux support is
+planned for later"). Every Linux host, this one included, runs the Windows
+server under Wine or Proton, and Keen does not support that. It is tested
+working here on 1.0. If a Keen update ever breaks it, the fallbacks in order are
+a newer image release, the image's Proton build, and finally a Windows VM.
+
 It is the **Wine** build, not the image's default Proton build. Enshrouded 1.0
 came out on 2026-10-15. Under the Proton build of the current release, the 1.0
 server dies at startup with `Failed to initialize Steamworks system...Version
@@ -153,8 +163,33 @@ capability dropped except the five the image's own hardening guide lists, and
 |---|---|
 | 15637/udp | everything: play, Steam query, server browser |
 
-Since Content Update 2 there is no separate game port. Older guides that list
-15636 are out of date.
+Keen lists one port, `queryPort` 15637, plus Steam's own ports, which the
+server only needs outbound. Since Content Update 2 there is no separate game
+port; older guides that list 15636 are out of date. Keen does not name a
+protocol, so it was checked on the running 1.0 server: 15637 is bound on UDP
+only, and nothing listens on TCP 15637. Forward UDP only. Multiplayer is IPv4
+only.
+
+## Joining
+
+Per Keen's FAQ, players find it in the game, not by typing an address:
+
+1. **Join** in the main menu.
+2. In the server filter on the right, switch on **Show dedicated servers**.
+   They are hidden by default.
+3. Find `RageQuit-Enshrouded`, star it so it stays at the top, and join with
+   the password.
+
+If it does not show in the list, add it in Steam instead: **View → Game
+Servers → Favorites → +** with `102.33.61.244:15637`.
+
+## Resources
+
+Keen's figures: the server uses ~4.4 GB of RAM idle plus up to 100 MB per
+player, and recommends an 8-core/16-thread CPU and 16 GB of RAM for 16 players,
+and 2 Mbit/s of upload per player. VM 110 has 64 GB and 16 vCPUs, shared with
+the other three servers. On this VM under Wine, `docker stats` showed ~0.8 GB
+with the world loaded and nobody online.
 
 ## Deploying
 
@@ -180,3 +215,22 @@ Since Content Update 2 there is no separate game port. Older guides that list
   every player able to open chests and edit bases, a griefer who has the
   password can only be stopped by changing it in `game.local.env` and
   restarting — which locks everyone out until they have the new one.
+
+## Keen's own documentation
+
+Checked against on 2026-10-16:
+
+- `enshrouded_server_readme.txt`, shipped with the server build itself
+  ("Version: 1.0.0.0") — every setting, the four default groups, what each
+  permission does, and the default 1.0 config. It is in
+  `data/game/server/` on the VM.
+- Keen's help centre: [Dedicated Server Installation](https://enshrouded.zendesk.com/hc/en-us/articles/16051370691485-Dedicated-Server-Installation-on-Steam),
+  [Dedicated Server FAQ](https://enshrouded.zendesk.com/hc/en-us/articles/16056312924957-Dedicated-Server-FAQ),
+  [Dedicated Server Configuration](https://enshrouded.zendesk.com/hc/en-us/articles/16055441447709-Dedicated-Server-Configuration),
+  [Server Roles Configuration](https://enshrouded.zendesk.com/hc/en-us/articles/19191581489309-Server-Roles-Configuration),
+  [Server Gameplay Settings](https://enshrouded.zendesk.com/hc/en-us/articles/20453241249821-Server-Gameplay-Settings),
+  [Recommended Server Specifications](https://enshrouded.zendesk.com/hc/en-us/articles/16055628734109-Recommended-Server-Specifications).
+  None of them had been edited for 1.0 yet, so where they differ from the
+  readme, the readme wins: for example, the 1.0 server writes its ban list as
+  `bannedAccounts`, where older documents say `bans`. The watcher checks both
+  names.

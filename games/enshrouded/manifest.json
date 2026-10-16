@@ -26,13 +26,13 @@
     {"file": "config/approved-config.json", "required": "\"canKickBan\"\\s*:\\s*false", "message": "the approved config must contain the single no-kick/ban group"},
     {"file": "config/approved-config.json", "forbidden": "\"canKickBan\"\\s*:\\s*true", "message": "the approved config gives a user group kick/ban (admin)"},
     {"file": "config/approved-config.json", "forbidden": "\"userGroups\"\\s*:\\s*\\[\\s*\\{[^\\[\\]]*\\}\\s*,", "message": "the approved config has more than one user group"},
-    {"file": "config/approved-config.json", "forbidden": "\"bannedAccounts\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "the approved config contains a ban"}
+    {"file": "config/approved-config.json", "forbidden": "\"(?:bannedAccounts|bans)\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "the approved config contains a ban"}
   ],
   "runtime_forbidden": [
     {"pattern": "\"canKickBan\"\\s*:\\s*true", "message": "a user group can kick/ban players (admin) in the live config"},
     {"pattern": "\"userGroups\"\\s*:\\s*\\[\\s*\\{[^\\[\\]]*\\}\\s*,", "message": "a second user group exists in the live config - a second password with its own permissions"},
     {"pattern": "\"password\"\\s*:\\s*\"\"", "message": "a user group has an EMPTY password - the server is open to anyone"},
-    {"pattern": "\"bannedAccounts\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "a player is banned in the live config - nobody can ban, so the file was edited by hand"}
+    {"pattern": "\"(?:bannedAccounts|bans)\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "a player is banned in the live config - nobody can ban, so the file was edited by hand"}
   ],
   "log_forbidden": [
     {"pattern": "Running (bootstrap|update pre|update post|backup pre|backup post|restart pre|restart post) hook", "message": "a container hook ran - none are configured, so one was set on the host"},
