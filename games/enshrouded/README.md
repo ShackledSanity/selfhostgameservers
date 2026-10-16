@@ -146,6 +146,19 @@ server under Wine or Proton, and Keen does not support that. It is tested
 working here on 1.0. If a Keen update ever breaks it, the fallbacks in order are
 a newer image release, the image's Proton build, and finally a Windows VM.
 
+What "working" means here, measured on VM 110 on 2026-10-16 (1.0, Wine 11.0):
+it reaches `Host_Online` ~28 s after the container starts, answers the Steam
+query, and saves the world on its own. A graceful stop saves the world first and
+exits with code 0 in ~18 s, well inside the 90 s it is given.
+
+One Wine quirk to know about: at the very last step of shutting down — closing
+Steamworks, after the world is already on disk — the server writes a crash dump
+(~320 KB) to `data/game/server/crash_dumps/`. One per stop or restart. It is
+not a lost save; the folder can be emptied at any time. Two harmless error
+lines also appear at every start: a Windows version value Wine does not
+provide (`DisplayVersion`), and a missing component in a `Benchmark` template
+that has nothing to do with gameplay.
+
 It is the **Wine** build, not the image's default Proton build. Enshrouded 1.0
 came out on 2026-10-15. Under the Proton build of the current release, the 1.0
 server dies at startup with `Failed to initialize Steamworks system...Version
