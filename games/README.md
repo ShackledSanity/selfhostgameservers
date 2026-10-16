@@ -27,6 +27,8 @@ games/<name>/
 | `container` | the docker container name to inspect + read logs from |
 | `compose_dir` | path from repo root to this module |
 | `live_config` | path — **or a list of paths** — (relative to `compose_dir`) of the live config the watcher hashes. A list is hashed as one blob so a game whose admin surface spans several files (e.g. 7DTD's `serverconfig.xml` + `serveradmin.xml`) is watched as a unit |
+| `live_config_format` | optional; `"json"` makes the watcher hash the config's **content** rather than its bytes (parsed, keys sorted, every non-empty `password` value blanked). For a server that rewrites its own JSON config in its own layout, like Enshrouded. `--approve` then also writes `config/approved-config.json`, the approved content in readable form |
+| `lock_summary` | optional; the admin-lock wording the daily #the-iris report shows for this game, instead of its config model's default |
 | `ports` | firewall ports `deploy.sh` opens (e.g. `"8211/udp"`) |
 | `image_pin_env` | file the audit checks for a `@sha256` pinned image |
 | `source_checks` | key=value assertions on a committed **env** file the audit enforces (the admin locks) |

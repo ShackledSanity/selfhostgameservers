@@ -119,15 +119,18 @@ jobs:
               if not admin_ok: all_good = False
 
               # Render settings + lock + config link per config model (env vs XML file).
+              # A manifest's own lock_summary (e.g. Enshrouded, which has no RCON or
+              # admin password to speak of) replaces the model's default wording.
+              summary = m.get("lock_summary")
               if m.get("source_checks"):   # env-configured game (Palworld)
-                  lock = "🔒 Admin: **DISABLED** (no admin password · RCON off · REST off)" if admin_ok \
+                  lock = f"🔒 Admin: **DISABLED** ({summary or 'no admin password · RCON off · REST off'})" if admin_ok \
                          else "🚨 Admin: **CHANGED — see #the-iris alerts**"
                   admin_keys = {c["key"] for c in m.get("source_checks", [])}
                   settings = [f"`{k}={v}`" for k, v in env.items() if k not in admin_keys and v != ""]
                   settings_line = "Settings: " + " · ".join(settings) if settings else "Settings: (defaults)"
                   cfg_link = f"📖 [full public config]({REPO}/blob/main/games/{g}/game.env)"
               else:                        # file/XML-configured game (7dtd)
-                  lock = "🔒 Admin: **DISABLED** (Telnet · Web Dashboard · creative all off · no admins)" if admin_ok \
+                  lock = f"🔒 Admin: **DISABLED** ({summary or 'Telnet · Web Dashboard · creative all off · no admins'})" if admin_ok \
                          else "🚨 Admin: **CHANGED — see #the-iris alerts**"
                   xp = read_xml_props(f"games/{g}/serverconfig.xml",
                                       ["GameDifficulty", "XPMultiplier", "LootAbundance", "LootRespawnDays",

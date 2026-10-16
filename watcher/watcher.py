@@ -108,8 +108,48 @@ def approved_path(m):
 def read_text(p):
     try:
         return Path(p).read_text(errors="replace")
-    except FileNotFoundError:
+    except OSError:
+        # Missing (server not up yet) OR unreadable (e.g. a container left it
+        # owner-only). Either way the watcher cannot vouch for it, so it reports
+        # config-missing - instead of a PermissionError killing the loop, which
+        # would silence the checks for every game until it was fixed.
         return None
+
+
+REDACTED = "<redacted>"
+
+
+def _redact(o):
+    if isinstance(o, dict):
+        return {k: (REDACTED if k == "password" and isinstance(v, str) and v else _redact(v))
+                for k, v in o.items()}
+    if isinstance(o, list):
+        return [_redact(v) for v in o]
+    return o
+
+
+def normalise(m, text):
+    """The text that is hashed and checked. Identical to the file for every game
+    except one whose manifest sets "live_config_format": "json".
+
+    For those, the CONTENT is hashed, not the layout: the JSON is parsed and
+    re-serialised with sorted keys and fixed separators. Enshrouded needs this - its
+    container writes the config (2-space jq layout) and the server rewrites it in
+    its own tab layout ~30 seconds later, so the raw bytes change on every start
+    while the settings stay the same.
+
+    The file also holds the join password. The hash is published (approved.sha256,
+    heartbeats), and a hash over an otherwise-public file plus one short password
+    can be brute-forced back to the password, so every non-empty "password" value is
+    replaced with a fixed marker first. An EMPTY one is left as it is: a server
+    opened to anyone still changes the hash."""
+    if text is None or m.get("live_config_format") != "json":
+        return text
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return text  # caught mid-write, or corrupt: hashes as drift if it persists
+    return json.dumps(_redact(data), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def sha256(text):
@@ -207,15 +247,29 @@ def approve(one=None):
         if one and m["name"] != one:
             continue
         found = True
-        text = read_live_config(m)
+        text = normalise(m, read_live_config(m))
         if text is None:
             print(f"[{m['name']}] live config not found at {', '.join(live_config_paths(m))} — start it first.")
             continue
+        public = None
+        if m.get("live_config_format") == "json":
+            try:
+                public = json.dumps(json.loads(text), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+            except ValueError:
+                print(f"[{m['name']}] live config is not valid JSON right now (mid-write?) — not approving; retry.")
+                continue
         h = sha256(text)
         ap = approved_path(m)
         os.makedirs(os.path.dirname(ap), exist_ok=True)
         Path(ap).write_text(h + "\n")
         print(f"[{m['name']}] approved {h}\n  wrote {ap} — commit it.")
+        if public is not None:
+            # The approved settings in full, password blanked, for anyone to read.
+            # approved.sha256 is the sha256 of exactly this content in compact form
+            # (sorted keys, "," and ":" separators), so it can be checked by hand.
+            pp = os.path.join(os.path.dirname(ap), "approved-config.json")
+            Path(pp).write_text(public)
+            print(f"  wrote {pp} — commit it too.")
     if one and not found:
         print(f"No game named '{one}' found under games/.")
 
@@ -231,7 +285,7 @@ def main():
     last_push = 0.0
     while True:
         for m in discover_games():
-            text = read_live_config(m)
+            text = normalise(m, read_live_config(m))
             live_hash = sha256(text)
             approved = read_approved(m)
             problems = []
