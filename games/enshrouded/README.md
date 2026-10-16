@@ -111,8 +111,9 @@ covered by the Proxmox backup of VM 110, which is on the same host.
 
 The image's own backup job (`BACKUP_CRON`) is **not** used: in release 1.7.2 it
 only understands the Early Access save layout and skips 1.0 worlds while
-reporting success. The fix was merged upstream on 2026-10-15 but is not in a
-release yet.
+reporting success. The fix was merged upstream on 2026-10-15 and is in the
+development build this server runs (see "The image"), but it has not been
+tested here, so the job stays off.
 
 ## Auto-update
 
@@ -142,29 +143,49 @@ port to leave unpublished.
 
 **Keen supports the dedicated server on Windows only** ("Linux support is
 planned for later"). Every Linux host, this one included, runs the Windows
-server under Wine or Proton, and Keen does not support that. It is tested
-working here on 1.0. If a Keen update ever breaks it, the fallbacks in order are
-a newer image release, the image's Proton build, and finally a Windows VM.
+server under Wine or Proton, and Keen does not support that.
 
-What "working" means here, measured on VM 110 on 2026-10-16 (1.0, Wine 11.0):
-it reaches `Host_Online` ~28 s after the container starts, answers the Steam
-query, and saves the world on its own. A graceful stop saves the world first and
-exits with code 0 in ~18 s, well inside the 90 s it is given.
+It is the image's **Proton** build, tag `dev-proton` (GE-Proton 11-9): a
+development build the maintainers published on 2026-10-15, the day Enshrouded
+1.0 came out. No numbered release runs 1.0 under Proton yet. Under the Proton
+build of 1.7.2 the 1.0 server dies at startup with `Failed to initialize
+Steamworks system...Version Mismatch` / `No SteamUtils011`; the dev build
+starts cleanly (tested on this VM on 2026-10-16). Move to the first numbered
+release after 1.7.2 once it is out.
 
-One Wine quirk to know about: at the very last step of shutting down — closing
-Steamworks, after the world is already on disk — the server writes a crash dump
-(~320 KB) to `data/game/server/crash_dumps/`. One per stop or restart. It is
-not a lost save; the folder can be emptied at any time. Two harmless error
-lines also appear at every start: a Windows version value Wine does not
-provide (`DisplayVersion`), and a missing component in a `Benchmark` template
-that has nothing to do with gameplay.
+**Why Proton.** The server first ran on the image's Wine build (Wine 11.0). It
+worked, but with two players exploring it averaged 35-39 ms per world update
+(4-6 ms with nobody on) and logged `[server] Bad Performance` every 5 seconds,
+which players see as "high server load". The VM was 77% idle at the time. The
+time went on thread synchronisation: that Wine build routes all of it through a
+single `wineserver` process, which sat at ~70% CPU while the server made
+~100,000 context switches a second. Proton does the same synchronisation in the
+kernel instead (`fsync: up and running.` in its log). Side by side on copies of
+the same world, both idle:
 
-It is the **Wine** build, not the image's default Proton build. Enshrouded 1.0
-came out on 2026-10-15. Under the Proton build of the current release, the 1.0
-server dies at startup with `Failed to initialize Steamworks system...Version
-Mismatch` / `No SteamUtils011` (tested on this VM on 2026-10-16). The Wine build
-runs the Steam client library that ships with the game itself, so it always
-matches. Worth revisiting once a newer release of the image is out.
+| | Wine build | Proton build |
+|---|---|---|
+| average world update | 4.3 ms | 1.8 ms |
+| `wineserver` CPU | 16% | 0% |
+| server context switches | ~16,400/s | ~2,800/s |
+
+Both builds write the same server config from the same settings, so switching
+between them does not change the approved hash. If the Proton build ever stops
+working, the fallbacks in order are: back to the Wine build (its digest is in
+`stack.env`; it works, but lags with players on), a newer image release, and
+finally a Windows VM.
+
+Measured on the Wine build on 2026-10-16: it reached `Host_Online` ~28 s after
+the container started, answered the Steam query, and saved the world on its
+own. A graceful stop saved the world first and exited with code 0 in ~18 s,
+well inside the 90 s it is given. At the very last step of shutting down —
+closing Steamworks, after the world was already on disk — it wrote a crash dump
+(~320 KB) to `data/game/server/crash_dumps/`, one per stop. That is not a lost
+save, and the folder can be emptied at any time. Two harmless error lines
+appeared at every start: a Windows version value Wine does not provide
+(`DisplayVersion`), and a missing component in a `Benchmark` template that has
+nothing to do with gameplay. The same stop-and-save check on the Proton build is
+part of switching the live server to it.
 
 It runs as uid/gid 4711, which is not an account on the VM, with every Linux
 capability dropped except the five the image's own hardening guide lists, and
@@ -201,8 +222,8 @@ Servers → Favorites → +** with `102.33.61.244:15637`.
 Keen's figures: the server uses ~4.4 GB of RAM idle plus up to 100 MB per
 player, and recommends an 8-core/16-thread CPU and 16 GB of RAM for 16 players,
 and 2 Mbit/s of upload per player. VM 110 has 64 GB and 16 vCPUs, shared with
-the other three servers. On this VM under Wine, `docker stats` showed ~0.8 GB
-with the world loaded and nobody online.
+the other servers. On this VM, `docker stats` showed ~0.8 GB with the world
+loaded and nobody online, on either build.
 
 ## Deploying
 
