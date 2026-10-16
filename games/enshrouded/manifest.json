@@ -1,0 +1,41 @@
+{
+  "name": "enshrouded",
+  "display_name": "Enshrouded",
+  "container": "enshrouded",
+  "compose_dir": "games/enshrouded",
+  "live_config": "data/game/server/enshrouded_server.json",
+  "live_config_format": "json",
+  "lock_summary": "one group for everyone · nobody can kick or ban · no container hooks",
+  "ports": ["15637/udp"],
+  "image_pin_env": "stack.env",
+  "source_checks": [
+    {"file": "game.env", "key": "SERVER_ROLE_0_CAN_KICK_BAN", "equals": "false"},
+    {"file": "game.env", "key": "SERVER_ROLE_0_PASSWORD", "empty": true},
+    {"file": "game.env", "key": "SERVER_PASSWORD", "empty": true},
+    {"file": "game.env", "key": "BOOTSTRAP_HOOK", "empty": true},
+    {"file": "game.env", "key": "UPDATE_PRE_HOOK", "empty": true},
+    {"file": "game.env", "key": "UPDATE_POST_HOOK", "empty": true},
+    {"file": "game.env", "key": "BACKUP_PRE_HOOK", "empty": true},
+    {"file": "game.env", "key": "BACKUP_POST_HOOK", "empty": true},
+    {"file": "game.env", "key": "RESTART_PRE_HOOK", "empty": true},
+    {"file": "game.env", "key": "RESTART_POST_HOOK", "empty": true}
+  ],
+  "committed_checks": [
+    {"file": "game.env", "forbidden": "^\\s*SERVER_ROLE_[1-9][0-9]*_", "message": "a second user group is defined - only role 0, shared by everyone, is allowed"},
+    {"file": "game.env", "forbidden": "^\\s*SERVER_ROLE_[0-9]+_CAN_KICK_BAN\\s*=\\s*true", "message": "a user group is given kick/ban (admin)"},
+    {"file": "config/approved-config.json", "required": "\"canKickBan\"\\s*:\\s*false", "message": "the approved config must contain the single no-kick/ban group"},
+    {"file": "config/approved-config.json", "forbidden": "\"canKickBan\"\\s*:\\s*true", "message": "the approved config gives a user group kick/ban (admin)"},
+    {"file": "config/approved-config.json", "forbidden": "\"userGroups\"\\s*:\\s*\\[\\s*\\{[^\\[\\]]*\\}\\s*,", "message": "the approved config has more than one user group"},
+    {"file": "config/approved-config.json", "forbidden": "\"bannedAccounts\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "the approved config contains a ban"}
+  ],
+  "runtime_forbidden": [
+    {"pattern": "\"canKickBan\"\\s*:\\s*true", "message": "a user group can kick/ban players (admin) in the live config"},
+    {"pattern": "\"userGroups\"\\s*:\\s*\\[\\s*\\{[^\\[\\]]*\\}\\s*,", "message": "a second user group exists in the live config - a second password with its own permissions"},
+    {"pattern": "\"password\"\\s*:\\s*\"\"", "message": "a user group has an EMPTY password - the server is open to anyone"},
+    {"pattern": "\"bannedAccounts\"\\s*:\\s*\\[\\s*[^\\]\\s]", "message": "a player is banned in the live config - nobody can ban, so the file was edited by hand"}
+  ],
+  "log_forbidden": [
+    {"pattern": "Running (bootstrap|update pre|update post|backup pre|backup post|restart pre|restart post) hook", "message": "a container hook ran - none are configured, so one was set on the host"},
+    {"pattern": "Reset enshrouded server roles", "message": "the user groups were wiped (enshrouded-reset-roles ran)"}
+  ]
+}

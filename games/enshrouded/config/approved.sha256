@@ -1,0 +1,17 @@
+# Approved runtime hash of Enshrouded's live config,
+# data/game/server/enshrouded_server.json (see manifest.json live_config).
+#
+# It is a hash of the CONTENT, not the file's bytes: the server rewrites that
+# file in its own layout a few seconds after every start, so the watcher parses
+# it, blanks the join password, and hashes it with keys sorted and "," / ":" as
+# separators. The exact approved content is published next to this file in
+# approved-config.json, so anyone can reproduce the value below:
+#
+#     python3 -c "import json,hashlib; d=json.load(open('approved-config.json')); print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',',':'), ensure_ascii=False).encode()).hexdigest())"
+#
+# Re-run `python3 watcher/watcher.py --approve enshrouded` and commit BOTH files
+# whenever a setting legitimately changes - or when a game update adds a new
+# setting to the file, which also changes the hash and raises a drift alert
+# until it has been looked at and approved.
+# The first non-comment line below is read as the hash:
+02122d31351f4039b979849c0258b491bb16a2850bff3068dda42c52ada9687a

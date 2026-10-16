@@ -1,0 +1,182 @@
+# Enshrouded
+
+Vanilla settings, one user group for everyone, no admin.
+
+## Admin surface, and how it is locked
+
+Enshrouded has no console, no RCON and no admin list. Its whole admin surface is
+its **user groups**: each group in `enshrouded_server.json` has a password and a
+set of permissions, and a player gets the permissions of whichever group's
+password they type when they join. The one admin power is **kick/ban**
+(`canKickBan`).
+
+A fresh Enshrouded 1.0 server generates four groups with random passwords:
+Admin (everything), Friend, Guest and Visitor. That layout assumes one trusted
+host holding the Admin password, which is exactly what this repo exists to rule
+out. So:
+
+| Channel | How it's locked | Where |
+|---|---|---|
+| Kick/ban | the only group has `canKickBan=false` | [`game.env`](game.env) |
+| A second, better-privileged password | exactly one group; `SERVER_ROLE_1_*` and above fail the audit | [`game.env`](game.env), [`manifest.json`](manifest.json) |
+| Container hooks (shell commands run inside the server container) | none set; the audit fails if one is | [`game.env`](game.env) |
+| Role reset (`supervisorctl start enshrouded-reset-roles`) | the watcher alerts if it runs | [`manifest.json`](manifest.json) |
+
+The watcher checks the **live** config every minute and alerts if any group can
+kick or ban, if a second group appears, if a group's password is emptied (the
+server would then be open to anyone), or if a ban shows up — nobody can ban, so
+a ban could only have been written in by hand. It also alerts if a container
+hook runs or the roles are reset.
+
+### Private join password
+
+The server is gated by a join password, kept **private** exactly like the other
+games'. It is the one group's password: the public [`game.env`](game.env) leaves
+`SERVER_ROLE_0_PASSWORD` empty, and the real value goes in
+`games/enshrouded/game.local.env` (gitignored, mode 600). Charl's call on
+2026-10-16: the same password as Valheim.
+
+Without that file the image gives the group an empty password and the server
+starts **open**, so `preflight.sh` refuses to go ahead without it. The password
+grants ordinary player permissions and nothing more.
+
+## Settings: vanilla
+
+Charl's call on 2026-10-16: vanilla server settings. Nothing gameplay-related
+is set, so the server runs its own defaults — `gameSettingsPreset: "Default"`,
+16 slots, voice and text chat off.
+
+The settings the server actually runs with are published in full in
+[`config/approved-config.json`](config/approved-config.json), password blanked.
+That includes everything the server fills in on its own, such as the settings
+new in 1.0 (`flameLevelFogRemoval`, the `Automatic` enemy amount).
+
+**The one deliberate difference from vanilla is the group's permissions.** With
+no Admin, the single group gets the Admin group's permissions *minus*
+kick/ban — which is vanilla's Friend plus `canExtendBase`. Extend base is what
+places and grows Flame Altars, a base's footprint; a server of vanilla Friends
+with nobody holding Admin could never start a base at all.
+
+| Permission | Here | Vanilla Admin | Vanilla Friend |
+|---|---|---|---|
+| `canKickBan` | **no** | yes | no |
+| `canAccessInventories` (chests, stations) | yes | yes | yes |
+| `canEditWorld` (terraform outside bases) | yes | yes | yes |
+| `canEditBase` (build inside bases) | yes | yes | yes |
+| `canExtendBase` (Flame Altars) | yes | yes | **no** |
+
+Why the preset is not set as `SERVER_GS_PRESET=Default` in `game.env`, even
+though that is the same value: with any `SERVER_GS_*` variable present, this
+image rewrites the config through a temp file and leaves it readable by its
+owner only, so the watcher would see the config vanish for ~15 seconds on every
+start. `preflight.sh` refuses to deploy with one set. The preset is pinned
+anyway: it is part of the approved config.
+
+## How the live config is checked
+
+`data/game/server/enshrouded_server.json` is written twice on every start:
+first by the container (from the `SERVER_*` variables), then by the server
+itself a few seconds later, in its own layout. The bytes change each time; the
+settings do not. So for this game the watcher hashes the **content** — it parses
+the JSON and re-serialises it with keys sorted (`"live_config_format": "json"`
+in [`manifest.json`](manifest.json)).
+
+The file also holds the join password. The hash is published, and a hash of an
+otherwise-public file plus one short password can be brute-forced back to the
+password, so the watcher blanks every non-empty password before hashing. An
+empty one is left as it is, so opening the server to anyone still changes the
+hash.
+
+[`config/approved.sha256`](config/approved.sha256) explains how to reproduce the
+approved hash from [`config/approved-config.json`](config/approved-config.json)
+with one line of Python.
+
+A game update that adds a setting to the file changes the hash and raises a
+drift alert, like a hand edit would. Check the new setting, then re-approve.
+
+## The world
+
+Enshrouded has one fixed map, so there is no seed to choose. The server created
+its world on first boot. Enshrouded 1.0 stores it as
+`data/game/server/savegame/world*.ksd` and keeps its own rolling copies in
+`savegame/backup/`.
+
+**That world is the only irreplaceable thing in this module, and it is not in
+git.** It is gitignored runtime state like every other game's saves, and it is
+covered by the Proxmox backup of VM 110, which is on the same host.
+
+The image's own backup job (`BACKUP_CRON`) is **not** used: in release 1.7.2 it
+only understands the Early Access save layout and skips 1.0 worlds while
+reporting success. The fix was merged upstream on 2026-10-15 but is not in a
+release yet.
+
+## Auto-update
+
+`UPDATE_CRON=*/15 * * * *` with `UPDATE_CHECK_PLAYERS=true`. Enshrouded
+**clients** update themselves through Steam, and a client newer than the server
+cannot join — so a server that does not update locks everyone out within hours
+of a patch. Same reasoning as 7DTD and Valheim.
+
+Every 15 minutes the image asks for Steam's current build number and installs a
+new one only when the server is empty. It counts players over the public query
+port, the same read-only A2S query 7DTD uses. Two dependencies are worth
+knowing:
+
+- The build number comes from the community `api.steamcmd.net` service, not from
+  Valve. While that is down, no update is attempted at all.
+- If the player count cannot be read, the image counts the server as empty.
+
+The container **image** stays digest-pinned in [`stack.env`](stack.env)
+regardless; this only updates the game files from Steam's own depot.
+
+## The image
+
+`mornedhels/enshrouded-server`, pinned by digest. Keen Games publishes no
+official server image, so this is a community one, like every other game here.
+Its supervisor listens on a socket inside the container only — no management
+port to leave unpublished.
+
+It is the **Wine** build, not the image's default Proton build. Enshrouded 1.0
+came out on 2026-10-15. Under the Proton build of the current release, the 1.0
+server dies at startup with `Failed to initialize Steamworks system...Version
+Mismatch` / `No SteamUtils011` (tested on this VM on 2026-10-16). The Wine build
+runs the Steam client library that ships with the game itself, so it always
+matches. Worth revisiting once a newer release of the image is out.
+
+It runs as uid/gid 4711, which is not an account on the VM, with every Linux
+capability dropped except the five the image's own hardening guide lists, and
+`no-new-privileges`.
+
+## Ports
+
+| Port | Purpose |
+|---|---|
+| 15637/udp | everything: play, Steam query, server browser |
+
+Since Content Update 2 there is no separate game port. Older guides that list
+15636 are out of date.
+
+## Deploying
+
+1. **Preflight** — `bash games/enshrouded/preflight.sh`. It checks the join
+   password is set, that nothing will make the live config unreadable to the
+   watcher, and whether this deploy keeps an existing world.
+2. `./scripts/deploy.sh enshrouded` — opens 15637/udp and brings up the
+   container.
+3. A first boot downloads ~8 GB from Steam. Watch with
+   `docker logs -f enshrouded`; it is ready at `[Session] ... 'Host_Online'`.
+4. If a setting changed: `python3 watcher/watcher.py --approve enshrouded`, then
+   commit **both** `config/approved.sha256` and `config/approved-config.json`.
+5. Port-forward **15637/udp** on the router to the VM.
+
+## Honest limits
+
+- **Characters live on each player's own PC.** In Keen's words, "Character
+  progression is stored only on clients" — the server holds the world, not the
+  characters. Anyone can bring a character in from another world, so this
+  server can vouch for the world's rules but not for what a character arrives
+  with.
+- **Nobody can kick or ban, including Charl.** With one shared password and
+  every player able to open chests and edit bases, a griefer who has the
+  password can only be stopped by changing it in `game.local.env` and
+  restarting — which locks everyone out until they have the new one.

@@ -1,0 +1,47 @@
+services:
+  enshrouded:
+    image: ${ENSHROUDED_IMAGE}
+    container_name: enshrouded
+    hostname: enshrouded
+    restart: unless-stopped
+    # The server saves the world on shutdown. The image waits 60s for it before
+    # escalating; give compose more than that so it is never cut short.
+    stop_grace_period: 90s
+    # All gameplay + admin settings come from the git-tracked game.env.
+    # game.local.env (gitignored, host-only) may override with PRIVATE values
+    # like SERVER_ROLE_0_PASSWORD — it never enters the public repo. Optional, so
+    # deploys work without it (preflight.sh refuses to go ahead without it).
+    env_file:
+      - path: game.env
+        required: true
+      - path: game.local.env
+        required: false
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      # The only port. Enshrouded has no RCON or web admin to leave unpublished.
+      - "${GAME_PORT}:15637/udp"
+    volumes:
+      # /opt/enshrouded holds the game install, the world (server/savegame) and
+      # the live config the watcher checks (server/enshrouded_server.json).
+      - "${DATA_DIR}/game:/opt/enshrouded"
+    # Least privilege, per the image's own hardening guide: no new privileges,
+    # every capability dropped, then back only the five its supervisor needs to
+    # set file ownership and drop to PUID/PGID.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - KILL
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "enshrouded_server"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
