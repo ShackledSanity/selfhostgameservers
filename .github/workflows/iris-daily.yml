@@ -91,6 +91,8 @@ jobs:
           for g in sorted(games):
               mpath = f"games/{g}/manifest.json"
               m = json.load(open(mpath)) if os.path.exists(mpath) else {}
+              if m.get("retired"):
+                  continue   # shut down for good: not reported
               env = read_env(f"games/{g}/game.env")
               disp = m.get("display_name", g)
               # online / uptime from the heartbeat

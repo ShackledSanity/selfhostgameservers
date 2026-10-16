@@ -60,10 +60,17 @@ jobs:
               except Exception:
                   return ""
 
+          def retired(g):
+              try:
+                  return bool(json.load(open(f"games/{g}/manifest.json")).get("retired"))
+              except Exception:
+                  return False   # unreadable manifest: keep reporting the game
+
           MAX_AGE = 1800
           now = int(time.time())
           games = [os.path.basename(d.rstrip("/")) for d in glob.glob("games/*/")
                    if not os.path.basename(d.rstrip("/")).startswith("_")]
+          games = [g for g in games if not retired(g)]   # shut down for good: not reported
 
           lines = []; all_ok = True
           for g in sorted(games):

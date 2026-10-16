@@ -25,6 +25,16 @@ deploy_game() {
   local dir="$1"
   local name; name="$(basename "$dir")"
   [ -f "$dir/docker-compose.yml" ] || { echo "skip $name (no compose)"; return 0; }
+
+  # A retired game stays down, even when asked for by name: bringing it back is a
+  # public commit that removes "retired" from its manifest, not a deploy flag.
+  local retired
+  retired="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("retired") or "")' "$dir/manifest.json" 2>/dev/null || true)"
+  if [ -n "$retired" ]; then
+    echo "skip $name (retired $retired; to bring it back, remove \"retired\" from its manifest.json)"
+    return 0
+  fi
+
   echo "==> Deploying $name"
 
   # Open the firewall ports this game declares in its manifest.

@@ -24,6 +24,7 @@ games/<name>/
 | Field | Meaning |
 |---|---|
 | `name` / `display_name` | short id / friendly name |
+| `retired` | optional; the date the game was shut down for good. The watcher, the #the-iris reports and `deploy.sh` skip it. `audit-config` still checks its committed config, so the published config stays admin-locked |
 | `container` | the docker container name to inspect + read logs from |
 | `compose_dir` | path from repo root to this module |
 | `live_config` | path — **or a list of paths** — (relative to `compose_dir`) of the live config the watcher hashes. A list is hashed as one blob so a game whose admin surface spans several files (e.g. 7DTD's `serverconfig.xml` + `serveradmin.xml`) is watched as a unit |
@@ -49,3 +50,16 @@ file-configured games (7DTD). A game may use either or both.
 4. On the host: `./scripts/deploy.sh <name>`, then
    `python3 watcher/watcher.py --approve <name>` and commit its `approved.sha256`.
 5. Port-forward the game's ports on your router to the VM.
+
+## Retiring a game
+
+1. Add `"retired": "<date>"` to its `manifest.json` and push. From then on the
+   #the-iris reports leave it out, so shutting it down raises no alert.
+2. On the host: stop the watcher, `git pull`, then
+   `docker compose --env-file stack.env down` in the game's folder. Archive its
+   world, close its firewall ports, and start the watcher again.
+3. Remove its port forwards on the router.
+
+The folder stays as the public record of how the server was run, and the world
+stays on the host. Bringing it back is a commit that removes `retired`,
+followed by a normal deploy.

@@ -3,7 +3,8 @@
 Provably-fair game-server watcher (multi-game).
 
 Runs on the game host. Discovers every game under games/<name>/manifest.json
-(folders starting with '_' are ignored) and, each cycle, for each game:
+(folders starting with '_' are ignored, and so are games whose manifest marks
+them "retired") and, each cycle, for each game:
   - hashes the live config and compares it to the game's approved hash,
   - verifies the admin locks are OFF (manifest 'runtime_forbidden' rules),
   - scans the container logs for forbidden admin activity ('log_forbidden'),
@@ -67,9 +68,13 @@ def discover_games():
         if os.path.basename(os.path.dirname(mpath)).startswith("_"):
             continue
         try:
-            games.append(json.loads(Path(mpath).read_text()))
+            m = json.loads(Path(mpath).read_text())
         except Exception as e:
             print(f"bad manifest {mpath}: {e}")
+            continue
+        if m.get("retired"):
+            continue  # shut down for good: no server to watch, no heartbeat
+        games.append(m)
     return games
 
 
@@ -271,7 +276,7 @@ def approve(one=None):
             Path(pp).write_text(public)
             print(f"  wrote {pp} — commit it too.")
     if one and not found:
-        print(f"No game named '{one}' found under games/.")
+        print(f"No active game named '{one}' found under games/ (retired games are skipped).")
 
 
 def main():
