@@ -1,5 +1,10 @@
 # Palworld — admin lockdown
 
+> **Retired on 2026-10-16.** The server is shut down and no longer appears in
+> #the-iris. Its world is kept on the host, not deleted. This folder stays as
+> the public record of how it was run; bringing it back is a commit that removes
+> `"retired"` from [`manifest.json`](manifest.json), then a normal deploy.
+
 Palworld's entire admin surface is **three switches, all keyed off one password**.
 With all three off, there is no way for anyone (including the host) to run an
 admin/cheat command — Palworld has no per-player admin roles.

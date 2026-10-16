@@ -31,12 +31,14 @@ Discord alert within a minute.
 The server is gated by a join password, kept **private** exactly like Palworld's.
 The public [`serverconfig.xml`](serverconfig.xml) keeps `ServerPassword` **empty**;
 [`render-config.sh`](render-config.sh) writes the live `sdtdserver.xml` with the
-password injected from `game.local.env` (gitignored). If `games/7dtd/game.local.env`
-is absent it falls back to **`games/palworld/game.local.env`**, so 7DTD reuses
-Palworld's password with no duplicated secret. The password grants zero
+password injected from `games/7dtd/game.local.env` (gitignored). The password grants zero
 privileges (it is not an admin credential) and only its *hash* ever appears in the
-public approved baseline. To use a different password, create
-`games/7dtd/game.local.env` with `SERVER_PASSWORD=...` and re-render.
+public approved baseline.
+
+Until Palworld was retired on 2026-10-16, 7DTD had no file of its own and reused
+Palworld's (`games/palworld/game.local.env`). It now has its own copy, with
+the same value, so it no longer depends on a game that is shut down.
+`render-config.sh` still falls back to Palworld's file if 7DTD's is missing.
 
 ## Applied gameplay settings
 
@@ -110,8 +112,8 @@ a drift alert — verify the change is benign, then re-approve the hash
 
 1. **Render the live config** (injects the private join password, never committed):
    `bash games/7dtd/render-config.sh`. Re-run this after any `serverconfig.xml`
-   change. (For a per-server password, first create `games/7dtd/game.local.env`
-   with `SERVER_PASSWORD=...`; otherwise it reuses Palworld's.)
+   change. (The password comes from `games/7dtd/game.local.env`,
+   `SERVER_PASSWORD=...`, mode 600.)
 2. `./scripts/deploy.sh 7dtd` (opens the game ports, brings up `sdtd`).
 3. Let it install + generate its save data on first boot (the ~17 GB SteamCMD
    download makes the FIRST boot slow). The server writes its own admin-free

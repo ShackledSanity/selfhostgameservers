@@ -1,6 +1,7 @@
 {
   "name": "palworld",
   "display_name": "Palworld",
+  "retired": "2026-10-16",
   "container": "palworld",
   "compose_dir": "games/palworld",
   "live_config": "saves/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini",
