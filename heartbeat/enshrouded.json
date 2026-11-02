@@ -1,10 +1,10 @@
 {
   "game": "enshrouded",
-  "ts": 1793616479,
-  "iso": "2026-11-02T10:47:59Z",
+  "ts": 1793616797,
+  "iso": "2026-11-02T10:53:17Z",
   "status": "ok",
   "server_running": true,
-  "server_health": "unhealthy",
+  "server_health": "healthy",
   "server_started": "2026-10-16T19:26:56.347593701Z",
   "runtime_config_sha256": "02122d31351f4039b979849c0258b491bb16a2850bff3068dda42c52ada9687a",
   "approved_config_sha256": "02122d31351f4039b979849c0258b491bb16a2850bff3068dda42c52ada9687a",
