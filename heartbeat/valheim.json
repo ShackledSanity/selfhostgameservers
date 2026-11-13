@@ -1,10 +1,10 @@
 {
   "game": "valheim",
-  "ts": 1794593908,
-  "iso": "2026-11-13T18:18:28Z",
+  "ts": 1794594216,
+  "iso": "2026-11-13T18:23:36Z",
   "status": "ok",
   "server_running": true,
-  "server_health": "starting",
+  "server_health": "healthy",
   "server_started": "2026-11-13T18:18:26.380139933Z",
   "runtime_config_sha256": "f956d89351407ccac5511c328f555882d51c93b3e0c2f0cec1b948f1fa8a3210",
   "approved_config_sha256": "f956d89351407ccac5511c328f555882d51c93b3e0c2f0cec1b948f1fa8a3210",
