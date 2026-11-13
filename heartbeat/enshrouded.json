@@ -1,13 +1,13 @@
 {
   "game": "enshrouded",
-  "ts": 1794591138,
-  "iso": "2026-11-13T17:32:18Z",
+  "ts": 1794591460,
+  "iso": "2026-11-13T17:37:40Z",
   "status": "ok",
   "server_running": true,
   "server_health": "healthy",
-  "server_started": "2026-10-16T19:26:56.347593701Z",
+  "server_started": "2026-11-13T17:36:18.97700769Z",
   "runtime_config_sha256": "02122d31351f4039b979849c0258b491bb16a2850bff3068dda42c52ada9687a",
   "approved_config_sha256": "02122d31351f4039b979849c0258b491bb16a2850bff3068dda42c52ada9687a",
-  "image": "sha256:d122801bb54498f41a6c0d8b27f336ec4c9266ffd5e4660611cb7c20c162318f",
-  "git_commit": "06404f6c1"
+  "image": "sha256:160d469d7a2dbed3a8dac2b1904df387302bfa0f524a26344582e1b76ca46fe4",
+  "git_commit": "c44af39b3"
 }
