@@ -129,10 +129,30 @@ knowing:
 
 - The build number comes from the community `api.steamcmd.net` service, not from
   Valve. While that is down, no update is attempted at all.
-- If the player count cannot be read, the image counts the server as empty.
+- If the player count cannot be read, the update waits for the next check.
+  That is how image 1.8.1 behaves. Earlier builds counted the server as empty
+  instead (see "The image").
 
 The container **image** stays digest-pinned in [`stack.env`](stack.env)
 regardless; this only updates the game files from Steam's own depot.
+
+## Daily restart
+
+`RESTART_CRON=10 2 * * *` with `RESTART_CHECK_PLAYERS=true`: once a day at
+**04:10 SAST** (02:10 UTC; the container runs on UTC), about an hour after
+7DTD's. Charl asked for it on 2026-11-13.
+
+It runs at :10, not on the hour, because the updater starts at :00, :15, :30
+and :45, and the image's restart does not wait for an update in progress. An
+update that starts at 02:00 has ten minutes to finish first. The update on
+2026-11-04 was installed about 20 seconds after the check that found it
+started.
+
+It restarts the server process inside the container. The server saves the world
+as it stops. It only happens when the same player count as the updater reads
+**zero**. If the count cannot be read, the restart is skipped until the next
+day, so it never drops anyone. The other side of that: a server that has hung
+while still running does not answer the query, so this restart leaves it alone.
 
 ## The image
 
@@ -143,15 +163,32 @@ port to leave unpublished.
 
 **Keen supports the dedicated server on Windows only** ("Linux support is
 planned for later"). Every Linux host, this one included, runs the Windows
-server under Wine or Proton, and Keen does not support that.
+server under Wine or Proton, and Keen does not support that. Still the case on
+2026-11-13: Steam's Enshrouded Dedicated Server app (2278520) lists Windows as
+its only OS, and its one game depot (2278521) is Windows-only.
 
-It is the image's **Proton** build, tag `dev-proton` (GE-Proton 11-9): a
-development build the maintainers published on 2026-10-15, the day Enshrouded
-1.0 came out. No numbered release runs 1.0 under Proton yet. Under the Proton
-build of 1.7.2 the 1.0 server dies at startup with `Failed to initialize
-Steamworks system...Version Mismatch` / `No SteamUtils011`; the dev build
-starts cleanly (tested on this VM on 2026-10-16). Move to the first numbered
-release after 1.7.2 once it is out.
+It is the image's **Proton** build of release **1.8.1** (2026-10-23), tag
+`1.8.1-proton`. From 2026-10-16 the server ran `dev-proton`, a development
+build the maintainers published on 2026-10-15, the day Enshrouded 1.0 came out.
+At that time no numbered release ran 1.0 under Proton: under the Proton build of
+1.7.2 the 1.0 server died at startup with `Failed to initialize Steamworks
+system...Version Mismatch` / `No SteamUtils011`.
+
+1.8.1 fixes two bugs reported against that line
+([#260](https://github.com/mornedhels/enshrouded-server/issues/260),
+[#262](https://github.com/mornedhels/enshrouded-server/issues/262)). Both affect
+what this server relies on:
+- the player count always read "empty", because the library behind it did not
+  load on the image's Python 3.14, so an update or restart could drop players;
+- an update could bring the server back on the old build while reporting
+  success, and updated clients then cannot join.
+
+Checked on this server on 2026-11-13: the dev build runs Python 3.14.4, and the
+player-count library fails to import (`KeyError: '__annotations__'`). That is
+bug #260, so from 2026-10-16 the update check could not see players and would
+have counted the server as empty. The second bug had not hit it: the server
+was on Steam's current build (26430253), installed on 2026-11-04 twelve minutes
+after Steam published it.
 
 **Why Proton.** The server first ran on the image's Wine build (Wine 11.0). It
 worked, but with two players exploring it averaged 35-39 ms per world update
@@ -184,8 +221,9 @@ closing Steamworks, after the world was already on disk — it wrote a crash dum
 save, and the folder can be emptied at any time. Two harmless error lines
 appeared at every start: a Windows version value Wine does not provide
 (`DisplayVersion`), and a missing component in a `Benchmark` template that has
-nothing to do with gameplay. The same stop-and-save check on the Proton build is
-part of switching the live server to it.
+nothing to do with gameplay. The same check on the Proton build, when the live
+server switched to it on 2026-10-16: a graceful stop wrote the world, exited
+with code 0 in ~15 s, and left no crash dump.
 
 It runs as uid/gid 4711, which is not an account on the VM, with every Linux
 capability dropped except the five the image's own hardening guide lists, and
